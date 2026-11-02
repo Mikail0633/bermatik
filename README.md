@@ -6,6 +6,20 @@
 
 > Proje beta aşamasındadır. 81 ilden ~40.000 berber/kuaför açık harita verilerinden (OpenStreetMap, Overture) aktarılmıştır; dükkân sahipleri "Bu dükkân sizin mi?" ile işletmelerini sahiplenebilir.
 
+## Ekran görüntüleri
+
+| Erkek bölümü | Kadın bölümü |
+|---|---|
+| ![Erkek ana sayfa](docs/ekran/erkek-ana.png) | ![Kadın ana sayfa](docs/ekran/kadin-ana.png) |
+| **İl sayfası (liste + harita)** | **Dükkân sayfası** |
+| ![Ankara berberleri](docs/ekran/il-ankara.png) | ![Dükkân sayfası](docs/ekran/dukkan.png) |
+
+<p align="center">
+  <img src="docs/ekran/mobil-erkek.png" width="260" alt="Telefonda erkek bölümü">
+  &nbsp;&nbsp;
+  <img src="docs/ekran/mobil-kadin.png" width="260" alt="Telefonda kadın bölümü">
+</p>
+
 ---
 
 ## Ne yapıyor?
