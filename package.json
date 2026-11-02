@@ -1,0 +1,13 @@
+{
+  "name": "bermatik",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm --prefix apps/web run dev",
+    "db:setup": "node scripts/db-setup.mjs",
+    "db:test": "node scripts/db-setup.mjs --db BermatikTest --reset --test",
+    "build:address": "node scripts/build-address-data.mjs",
+    "db:dev": "node scripts/dev-db.mjs",
+    "import:osm": "node scripts/import-osm.mjs"
+  }
+}

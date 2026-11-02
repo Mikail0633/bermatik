@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   Bermatik renkleri
+   Erkek: siyah + koyu gri + altın   ·   Kadın: pudra + bordo + beyaz
+   Bölüm, sayfadaki data-segment="erkek|kadin" ile seçilir.
+   Erkek bölümü koyu, kadın bölümü açık renklidir (kullanıcı tercihi; ayrı gece modu yok).
+   ===================================================================== */
+[data-segment="erkek"] {
+  color-scheme: dark;            /* tarih/saat seçicileri ve açılır listeler de koyu */
+  --bg: #0b0b0b;                 /* siyah zemin */
+  --surface: #1a1a1a;            /* koyu gri kutular */
+  --surface-2: #262626;
+  --ink: #f5f5f5;                /* beyaz yazı */
+  --muted: #a3a3a3;
+  --border: #333333;
+  --primary: #c9a227;            /* altın düğmeler */
+  --primary-ink: #111111;
+  --accent: #c9a227;
+  --accent-ink: #111111;
+  --open: #22a06b;
+  --closed: #ef4444;
+  --hero: #141414;
+  --hero-ink: #ffffff;
+  --cta: #c9a227;
+  --cta-ink: #111111;
+  --logo-bg: #c9a227;
+  --logo-fg: #111111;
+}
+[data-segment="kadin"] {
+  --bg: #fdf5f5;
+  --surface: #ffffff;
+  --surface-2: #f6e1e1;
+  --ink: #3a1622;
+  --muted: #7a5a64;
+  --border: #f0d6d9;
+  --primary: #8e2c48;
+  --primary-ink: #ffffff;
+  --accent: #8e2c48;
+  --accent-ink: #ffffff;
+  --open: #1f7a4d;
+  --closed: #b42318;
+  --hero: #8e2c48;
+  --hero-ink: #ffffff;
+  --cta: #ffffff;
+  --cta-ink: #8e2c48;
+  --logo-bg: #8e2c48;
+  --logo-fg: #f6e1e1;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-hero: var(--hero);
+  --color-hero-ink: var(--hero-ink);
+  --color-cta: var(--cta);
+  --color-cta-ink: var(--cta-ink);
+  --color-logo-bg: var(--logo-bg);
+  --color-logo-fg: var(--logo-fg);
+  --color-open: var(--open);
+  --color-closed: var(--closed);
+  --font-sans: "Inter Variable";
+}
+
+body {
+  font-family: "Inter Variable", system-ui, sans-serif;
+}
+
+/* Klavye ile gezinenler için belirgin odak çerçevesi */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}

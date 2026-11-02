@@ -1,0 +1,22 @@
+# Bağımlılıklar ve derleme çıktıları
+node_modules/
+.next/
+.next-dev/
+.expo/
+dist/
+*.tsbuildinfo
+
+# Şifreler / ayarlar (ASLA yüklenmez)
+.env*
+!.env.example
+*.pem
+*.key
+
+# Yerel veri: harita ham verisi, yüklenen fotoğraf ve belgeler
+scripts/.cache/
+apps/web/storage/
+
+# Kişisel / araç ayarları
+.claude/
+apps/mobile/.claude/
+image copy.png
