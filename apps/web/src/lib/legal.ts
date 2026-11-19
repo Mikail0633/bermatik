@@ -8,6 +8,6 @@ export const LEGAL = {
   /** Uyuşmazlıklarda yetkili mahkeme ve icra daireleri (ör. Ankara) */
   courtCity: "[Şehir]",
   /** Metinlerin yürürlük tarihi ve sürümü (kayıtta onaylanan sürüm: data.Users.KvkkVersion) */
-  updated: "31 Ekim 2026",
-  version: "2026-2",
+  updated: "11 Kasım 2026",
+  version: "2026-3",
 };

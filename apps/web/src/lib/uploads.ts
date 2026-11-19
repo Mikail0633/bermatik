@@ -1,5 +1,5 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -17,7 +17,8 @@ function sniff(b: Buffer): { ext: string; type: string } | null {
   return null;
 }
 
-export async function savePrivateFile(file: File, folder: "dogrulama" | "ustalik"): Promise<{ path?: string; error?: string }> {
+// hash: dosyanın SHA-256 özeti (aynı belge dosyası başka hesapta kullanılmasın diye)
+export async function savePrivateFile(file: File, folder: "dogrulama" | "ustalik"): Promise<{ path?: string; hash?: Buffer; error?: string }> {
   if (!file || file.size === 0) return { error: "Bir dosya seçin." };
   if (file.size > MAX_BYTES) return { error: "Dosya en fazla 8 MB olabilir." };
   const buf = Buffer.from(await file.arrayBuffer());
@@ -26,7 +27,7 @@ export async function savePrivateFile(file: File, folder: "dogrulama" | "ustalik
   const rel = `${folder}/${randomUUID()}.${kind.ext}`;
   await mkdir(path.join(ROOT, folder), { recursive: true });
   await writeFile(path.join(ROOT, rel), buf);
-  return { path: rel };
+  return { path: rel, hash: createHash("sha256").update(buf).digest() };
 }
 
 // ---------------------------------------------------------------------

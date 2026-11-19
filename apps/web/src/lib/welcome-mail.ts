@@ -1,5 +1,6 @@
 import "server-only";
 import { sendMail } from "./mail";
+import { call } from "./db";
 
 // Kayıttan sonra giden hoş geldin e-postası
 export function sendWelcomeMail(email: string, firstName: string, isBusiness: boolean) {
@@ -57,4 +58,28 @@ Siz değilseniz hemen şifrenizi değiştirin: ${site}/hesabim
 
 Bermatik`,
   );
+}
+
+// Adminlere: biri işletme hesabı için belge yükledi (belge numarası ve dosya e-postaya KONMAZ; admin panelden bakar)
+const DOC_LABEL: Record<string, string> = {
+  kimlik: "kimlik kartı", ruhsat: "işyeri açma ruhsatı", vergi_levhasi: "vergi levhası", esnaf_kaydi: "esnaf odası kaydı", diger: "belge",
+};
+export async function sendAdminDocumentAlert(person: string, kind: string, autoVerified: boolean) {
+  const site = process.env.SITE_URL ?? "http://localhost:3000";
+  const admins = await call<{ Email: string; FirstName: string }>("api.Admin_AlertRecipients");
+  const status = autoVerified
+    ? "Kimlik nüfus kayıtlarıyla eşleşti, işletme paneli kendiliğinden açıldı. Yine de belgeye göz atmanız iyi olur."
+    : "İşletme paneli sizin onayınızı bekliyor.";
+  await Promise.all(admins.map((a) => sendMail(
+    { email: a.Email, name: a.FirstName },
+    `Yeni işletme hesabı belgesi: ${person}`,
+    `Merhaba ${a.FirstName},
+
+${person} işletme hesabı açmak için ${DOC_LABEL[kind] ?? "belge"} yükledi.
+${status}
+
+Belgeyi incelemek için: ${site}/admin/belgeler
+
+Bermatik`,
+  )));
 }

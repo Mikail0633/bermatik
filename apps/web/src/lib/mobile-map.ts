@@ -14,6 +14,7 @@ export const shopCard = (s: ShopCard) => ({
   isOpen: Boolean(s.IsOpen), opensAt: hhmm(s.OpensAt) || null, closesAt: hhmm(s.ClosesAt) || null,
   isCertified: Boolean(s.IsCertified), rating: s.AvgRating == null ? null : Number(s.AvgRating), reviewCount: s.ReviewCount ?? 0,
   todayAppointments: s.TodayAppointments ?? 0, isClaimed: Boolean(s.IsClaimed),
+  addedViaBermatik: Boolean(s.AddedViaBermatik),
 });
 
 export const shopDetail = (s: ShopDetail) => ({
@@ -33,6 +34,7 @@ export const staff = (x: Staff) => ({ id: x.Id, name: x.DisplayName, title: x.Ti
 
 export const review = (x: Review) => ({
   id: x.Id, rating: x.Rating, comment: x.Comment, createdAt: new Date(x.CreatedAt).toISOString(), customer: x.CustomerName, staff: x.StaffName,
+  reply: x.ReplyText ?? null,
 });
 
 export const hours = (x: Hours) => ({ weekday: x.Weekday, isClosed: Boolean(x.IsClosed), opensAt: hhmm(x.OpensAt) || null, closesAt: hhmm(x.ClosesAt) || null });

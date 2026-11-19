@@ -1,10 +1,10 @@
 import { call } from "@/lib/db";
-import { GUID, authed, body, fail, ok, str } from "@/lib/mobile";
+import { GUID, businessAuthed, body, fail, ok, str } from "@/lib/mobile";
 import { TIME, panelShop } from "@/lib/mobile-panel";
 import { hhmm, type Hours } from "@/lib/types";
 
 // "Bilgiler ve saatler" (yalnızca sahip / admin)
-export const GET = authed(async (user, _req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const GET = businessAuthed(async (user, _req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   const { shop, canManage } = await panelShop(user, shopId);
@@ -32,7 +32,7 @@ export const GET = authed(async (user, _req: Request, { params }: { params: Prom
  *     — konum (il/ilçe/mahalle/harita), mağaza ayarı ve kapak fotoğrafı değişmeden kalır
  *   { tur: "saatler", hours: [{ weekday, isClosed, opensAt: "09:00", closesAt: "20:00" | "24:00" }] }
  */
-export const POST = authed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const POST = businessAuthed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   const b = await body(req);

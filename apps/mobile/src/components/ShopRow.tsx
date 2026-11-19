@@ -9,6 +9,17 @@ import { alpha } from '@/lib/theme';
 import type { ShopCard } from '@/lib/types';
 import { Row, T } from './ui';
 
+/** "Bermatik ile eklendi" rozeti (sitedekiyle aynı; veritabanında Shops.AddedViaBermatik) */
+export function BermatikBadge() {
+  const th = useTheme();
+  return (
+    <Row gap={4} style={{ alignSelf: 'flex-start', marginTop: 4, borderRadius: 999, borderWidth: 1, borderColor: alpha(th.accent, 0.5), backgroundColor: alpha(th.accent, 0.1), paddingHorizontal: 8, paddingVertical: 2 }}>
+      <Ionicons name="checkmark-circle" size={13} color={th.accent} />
+      <T size={12} bold>Bermatik ile eklendi</T>
+    </Row>
+  );
+}
+
 // Sitedeki dükkân listesi parçaları (apps/web/src/components/ShopCard.tsx ile aynı düzen)
 
 /** Açık / kapalı rozeti: "● Şu an açık · Kapanış 20:00" (kısa: "● Açık") */
@@ -76,8 +87,9 @@ export function ShopRow({ shop, first }: { shop: ShopCard; first?: boolean }) {
             <T size={12} muted>{shop.todayAppointments === 0 ? 'Bugün randevu yok' : `Bugün ${shop.todayAppointments} randevu`}</T>
           </Row>
         ) : (
-          <T size={12} muted style={{ marginTop: 2 }}>Henüz Bermatik'te değil</T>
+          <T size={12} muted style={{ marginTop: 2 }}>{shop.addedViaBermatik ? 'Sahibi henüz katılmadı' : "Henüz Bermatik'te değil"}</T>
         )}
+        {shop.addedViaBermatik ? <BermatikBadge /> : null}
       </View>
       {shop.isClaimed && (
         <View style={{ alignItems: 'flex-end', gap: 6 }}>

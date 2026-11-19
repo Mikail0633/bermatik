@@ -155,24 +155,73 @@ END
 GO
 
 -- ---------------------------------------------------------------------
--- Müşterinin bildirim ayarları (ikisi de varsayılan kapalı)
+-- "Traş / bakım zamanın geldi" hatırlatması (arka plan görevi 10 dakikada bir çağırır)
+--   * Yalnızca gündüz (İstanbul 10:00–20:00) gönderilir; gece kimse rahatsız edilmez
+--   * Zamanı bugün ya da son 30 gün içinde gelmiş, ileri tarihli randevusu olmayan müşteriye
+--   * Her ziyaret döngüsünde EN FAZLA 1 kez (son ziyaretten sonra gönderildiyse bir daha gitmez)
+--   * Müşteri Hesabım'dan kapatabilir (RevisitRemindersOptIn)
+--   Bağlantı: en son gittiği dükkânın sayfası (oradan randevu alır)
+-- ---------------------------------------------------------------------
+CREATE OR ALTER PROCEDURE api.Worker_EnqueueRevisitReminders @IgnoreQuietHours bit = 0
+AS
+BEGIN
+  SET NOCOUNT ON;
+  DECLARE @Now datetime2(0) = SYSUTCDATETIME();
+  DECLARE @Hour int = DATEPART(hour, data.fn_IstanbulNow());
+  IF @IgnoreQuietHours = 0 AND (@Hour < 10 OR @Hour >= 20) BEGIN SELECT 0 AS Enqueued; RETURN; END
+
+  DECLARE @T TABLE (UserId uniqueidentifier PRIMARY KEY, ShopName nvarchar(100), Segment varchar(5), Url nvarchar(300), Days int, PushOk bit);
+  INSERT INTO @T
+  SELECT TOP (300) due.CustomerId, s.Name, s.Segment,
+         N'/' + s.Segment + N'/' + p.Slug + N'/' + d.Slug + N'/' + s.Slug,
+         DATEDIFF(day, due.LastVisit, @Now),
+         CASE WHEN u.PushOptIn = 1 AND EXISTS (SELECT 1 FROM data.PushSubscriptions ps WHERE ps.UserId = u.Id) THEN 1 ELSE 0 END
+  FROM data.tvf_CustomerDue(NULL) due
+  JOIN data.Users u ON u.Id = due.CustomerId AND u.IsActive = 1 AND u.RevisitRemindersOptIn = 1
+  CROSS APPLY (SELECT TOP (1) a.ShopId FROM data.Appointments a
+               WHERE a.CustomerId = due.CustomerId AND a.Status = 'completed' ORDER BY a.StartsAt DESC) last
+  JOIN data.Shops s ON s.Id = last.ShopId AND s.Status = 'approved'
+  JOIN data.Provinces p ON p.Id = s.ProvinceId
+  JOIN data.Districts d ON d.Id = s.DistrictId
+  WHERE due.DueAt <= @Now AND due.DueAt >= DATEADD(day, -30, @Now)
+    AND NOT EXISTS (SELECT 1 FROM data.Appointments x
+                    WHERE x.CustomerId = due.CustomerId AND x.Status IN ('pending', 'accepted') AND x.StartsAt > @Now)
+    AND NOT EXISTS (SELECT 1 FROM data.Notifications n
+                    WHERE n.UserId = due.CustomerId AND n.Kind = 'revisit_due' AND n.CreatedAt > due.LastVisit)
+  ORDER BY due.DueAt;
+
+  INSERT INTO data.Notifications (UserId, Kind, Title, Body, Url, PushStatus)
+  SELECT UserId, 'revisit_due',
+         CASE WHEN Segment = 'kadin' THEN N'Bakım zamanın geldi ✂️' ELSE N'Traş zamanın geldi ✂️' END,
+         N'Son gelişinin üzerinden ' + CAST(Days AS nvarchar(10)) + N' gün geçti (' + ShopName + N'). Uygun saatlere bak, randevunu al.',
+         Url, CASE WHEN PushOk = 1 THEN 'queued' END
+  FROM @T;
+  SELECT @@ROWCOUNT AS Enqueued;
+END
+GO
+
+-- ---------------------------------------------------------------------
+-- Müşterinin bildirim ayarları (telefon ve boşalan randevu varsayılan kapalı; "zamanın geldi" varsayılan açık)
 -- ---------------------------------------------------------------------
 CREATE OR ALTER PROCEDURE api.Notify_GetPreferences @ActorId uniqueidentifier
 AS
 BEGIN
   SET NOCOUNT ON;
   SELECT PushOptIn, SlotAlertsOptIn,
-         CAST(CASE WHEN EXISTS (SELECT 1 FROM data.PushSubscriptions WHERE UserId = @ActorId) THEN 1 ELSE 0 END AS bit) AS HasDevice
+         CAST(CASE WHEN EXISTS (SELECT 1 FROM data.PushSubscriptions WHERE UserId = @ActorId) THEN 1 ELSE 0 END AS bit) AS HasDevice,
+         RevisitRemindersOptIn
   FROM data.Users WHERE Id = @ActorId;
 END
 GO
 
-CREATE OR ALTER PROCEDURE api.Notify_SetPreferences @ActorId uniqueidentifier, @PushOptIn bit, @SlotAlertsOptIn bit
+-- @RevisitRemindersOptIn NULL = değiştirme (eski uygulama sürümleri bu alanı göndermez)
+CREATE OR ALTER PROCEDURE api.Notify_SetPreferences @ActorId uniqueidentifier, @PushOptIn bit, @SlotAlertsOptIn bit, @RevisitRemindersOptIn bit = NULL
 AS
 BEGIN
   SET NOCOUNT ON;
   EXEC data.usp_RequireUser @ActorId;
-  UPDATE data.Users SET PushOptIn = @PushOptIn, SlotAlertsOptIn = @SlotAlertsOptIn, UpdatedAt = SYSUTCDATETIME()
+  UPDATE data.Users SET PushOptIn = @PushOptIn, SlotAlertsOptIn = @SlotAlertsOptIn,
+         RevisitRemindersOptIn = ISNULL(@RevisitRemindersOptIn, RevisitRemindersOptIn), UpdatedAt = SYSUTCDATETIME()
   WHERE Id = @ActorId;
 END
 GO

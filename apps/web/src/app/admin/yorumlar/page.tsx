@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 type Review = {
   Id: string; Rating: number; Comment: string | null; IsHidden: boolean; CreatedAtLocal: Date;
-  Code: string; ShopName: string; CustomerName: string; Email: string;
+  Code: string; ShopName: string; CustomerName: string; Email: string; ReplyText: string | null;
 };
 const when = (d: Date) => new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" }).format(new Date(d));
 
@@ -39,6 +39,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ g
                   : <ActionButton variant="danger" action={setReviewHidden.bind(null, r.Id, true)}>Gizle</ActionButton>}
               </div>
               {r.Comment && <p className="mt-2">{r.Comment}</p>}
+              {r.ReplyText && <p className="mt-2 rounded-lg border-l-4 border-primary bg-surface-2 px-3 py-1.5 text-sm"><span className="text-xs font-semibold text-muted">İşletmenin cevabı: </span>{r.ReplyText}</p>}
             </li>
           ))}
         </ul>

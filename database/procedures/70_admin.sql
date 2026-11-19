@@ -12,7 +12,8 @@ BEGIN
     (SELECT COUNT(*) FROM data.Users) AS UserCount,
     (SELECT COUNT(*) FROM data.Shops WHERE Status = 'approved') AS ApprovedShops,
     (SELECT COUNT(*) FROM data.Shops WHERE Status = 'pending') AS PendingShops,
-    (SELECT COUNT(*) FROM data.Certificates WHERE Status = 'pending') AS PendingCertificates,
+    (SELECT COUNT(*) FROM data.Certificates WHERE Status = 'pending')
+      + (SELECT COUNT(*) FROM data.OwnerDocuments WHERE Status = 'pending' AND ShopId IS NULL AND ClaimId IS NULL) AS PendingCertificates,
     (SELECT COUNT(*) FROM data.Appointments WHERE CreatedAt >= @TodayUtc) AS AppointmentsToday,
     (SELECT COUNT(*) FROM data.QueueEntries WHERE CreatedAt >= @TodayUtc) AS QueueEntriesToday,
     (SELECT COUNT(*) FROM data.Orders WHERE CreatedAt >= @TodayUtc) AS OrdersToday,
@@ -158,7 +159,7 @@ BEGIN
   SET NOCOUNT ON;
   EXEC data.usp_RequireAdmin @ActorId;
   SELECT TOP (200) r.Id, r.Rating, r.Comment, r.IsHidden, data.fn_ToIstanbul(r.CreatedAt) AS CreatedAtLocal,
-         s.Code, s.Name AS ShopName, u.FirstName + N' ' + u.LastName AS CustomerName, u.Email
+         s.Code, s.Name AS ShopName, u.FirstName + N' ' + u.LastName AS CustomerName, u.Email, r.ReplyText
   FROM data.Reviews r JOIN data.Shops s ON s.Id = r.ShopId JOIN data.Users u ON u.Id = r.CustomerId
   WHERE @ShopId IS NULL OR r.ShopId = @ShopId
   ORDER BY r.CreatedAt DESC;

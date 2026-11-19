@@ -8,6 +8,7 @@ import type { User } from './types';
 type RegisterInput = {
   firstName: string; lastName: string; email: string; phone: string; birthYear: string; password: string;
   kvkk: boolean; isBusiness: boolean; consentEmail: boolean; consentSms: boolean;
+  doc?: { kind: string; number: string; fileBase64: string; mimeType: string };
 };
 
 type AuthCtx = {
@@ -89,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const r = await api<{ token: string; user: User }>('/api/m/kayit', {
       method: 'POST', auth: false,
       body: { ...input, deviceId: await deviceId(), deviceName: Device.modelName ?? undefined },
+      timeoutMs: input.doc ? 60_000 : 20_000, // belge fotoğrafı yüklenir + kimlik nüfustan sorgulanır
     });
     await afterLogin(r);
   }, [afterLogin]);

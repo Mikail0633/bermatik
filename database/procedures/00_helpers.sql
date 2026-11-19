@@ -237,6 +237,27 @@ BEGIN
 END
 GO
 
+-- İşletme paneli açık mı? (site sahibinin kararı, 2026-11-19)
+--   * Admin, ya da kendi belgesi onaylanmış / kimliği nüfusta doğru çıkmış hesap → açık
+--   * Personel: sahibi onaylı bir dükkânda AKTİF personelse belge istenmez → açık.
+--     Kalıcı yazılmaz, her seferinde bakılır: sahip personeli çıkarırsa ya da sahibin onayı geri alınırsa kapanır.
+--     Kendi dükkânı olan hesaba bu yol uygulanmaz (onayı geri alınmış sahip, başka dükkânda personel olarak kendi dükkânına giremesin).
+--   Dükkân açma ve sahiplenme bu fonksiyonu KULLANMAZ: onlar için kişinin kendi belgesi gerekir (BusinessVerifiedAt).
+CREATE OR ALTER FUNCTION data.fn_IsBusinessVerified(@UserId uniqueidentifier)
+RETURNS bit AS
+BEGIN
+  RETURN CASE
+    WHEN EXISTS (SELECT 1 FROM data.Users WHERE Id = @UserId AND (Role = 'admin' OR BusinessVerifiedAt IS NOT NULL)) THEN 1
+    WHEN NOT EXISTS (SELECT 1 FROM data.Shops WHERE OwnerId = @UserId)
+     AND EXISTS (SELECT 1 FROM data.Staff st
+                 JOIN data.Shops s ON s.Id = st.ShopId
+                 JOIN data.Users o ON o.Id = s.OwnerId AND o.IsActive = 1
+                 WHERE st.UserId = @UserId AND st.IsActive = 1
+                   AND (o.Role = 'admin' OR o.BusinessVerifiedAt IS NOT NULL)) THEN 1
+    ELSE 0 END;
+END
+GO
+
 -- Katılmamış dükkânların sahibi olan sistem hesabı
 CREATE OR ALTER FUNCTION data.fn_SystemUserId()
 RETURNS uniqueidentifier AS

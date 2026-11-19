@@ -27,7 +27,7 @@ export function PhoneBookingForm({ shopId, day, services, staff }: { shopId: str
         <select name="staffId" className={input}>{staff.map((s) => <option key={s.Id} value={s.Id}>{s.DisplayName}</option>)}</select></label>
       <div className="grid grid-cols-2 gap-2">
         <label className="text-sm"><span className="mb-1 block font-semibold">Gün</span><input type="date" name="date" defaultValue={day} required className={input} /></label>
-        <label className="text-sm"><span className="mb-1 block font-semibold">Saat</span><input type="time" name="time" required step={300} className={input} /></label>
+        <label className="text-sm"><span className="mb-1 block font-semibold">Saat</span><input type="time" name="time" required step={60}className={input} /></label>
       </div>
       <label className="text-sm sm:col-span-2"><span className="mb-1 block font-semibold">Not</span><input name="note" className={input} /></label>
       <div className="sm:col-span-2 sm:w-60"><SubmitButton>Randevuyu ekle</SubmitButton></div>

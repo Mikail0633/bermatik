@@ -1,11 +1,11 @@
 import { call, callOne } from "@/lib/db";
-import { GUID, authed, fail, ok } from "@/lib/mobile";
+import { GUID, businessAuthed, fail, ok } from "@/lib/mobile";
 import { panelAppt, panelShop, todayTR, type PanelAppt } from "@/lib/mobile-panel";
 
 type Stats = { CompletedAppointments: number; AppointmentRevenue: number; NoShows: number; UniqueCustomers: number };
 
 // "Bugün" sekmesi: dükkân özeti + son 7 gün (yalnızca sahip/admin) + onay bekleyenler + bugünün onaylı randevuları
-export const GET = authed(async (user, _req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const GET = businessAuthed(async (user, _req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   const { shop, canManage } = await panelShop(user, shopId);

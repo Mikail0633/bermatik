@@ -17,6 +17,16 @@ export function OpenBadge({ shop, compact = false }: { shop: Pick<Shop, "IsOpen"
   );
 }
 
+/** "Bermatik ile eklendi" rozeti: dükkân Bermatik içinden eklendi / Bermatik'e katıldı (veritabanında Shops.AddedViaBermatik) */
+export function BermatikBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-accent/50 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-ink">
+      <BadgeCheck className="h-3.5 w-3.5 text-accent" aria-hidden />
+      Bermatik ile eklendi
+    </span>
+  );
+}
+
 export function Rating({ value, count }: { value: number | null; count: number }) {
   if (!value) return <span className="text-xs text-muted">Yeni</span>;
   return (
@@ -70,7 +80,10 @@ export function ShopRow({ shop }: { shop: Shop }) {
               {shop.TodayAppointments === 0 ? "Bugün randevu yok" : `Bugün ${shop.TodayAppointments} randevu`}
             </p>
           )}
-          {!shop.IsClaimed && <p className="mt-0.5 text-xs text-muted">Henüz Bermatik&apos;te değil</p>}
+          {!shop.IsClaimed && (
+            <p className="mt-0.5 text-xs text-muted">{shop.AddedViaBermatik ? "Sahibi henüz katılmadı" : "Henüz Bermatik'te değil"}</p>
+          )}
+          {shop.AddedViaBermatik && <p className="mt-1"><BermatikBadge /></p>}
         </div>
         {shop.IsClaimed && (
           <div className="flex shrink-0 flex-col items-end gap-1.5">

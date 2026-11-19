@@ -25,6 +25,8 @@ export type SessionUser = {
   Phone: string | null;
   TotpEnabled: boolean;
   EmailVerified: boolean;
+  /** İşletme hesabı doğrulandı mı (admin her zaman evet) — İşletme paneli bununla açılır */
+  BusinessVerified: boolean;
 };
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest();

@@ -1,5 +1,5 @@
 import { call } from "@/lib/db";
-import { GUID, authed, body, fail, ok, str } from "@/lib/mobile";
+import { GUID, businessAuthed, body, fail, ok, str } from "@/lib/mobile";
 import { panelShop } from "@/lib/mobile-panel";
 
 type Row = {
@@ -8,7 +8,7 @@ type Row = {
 };
 
 // "Hizmetler ve fiyatlar" (yalnızca sahip / admin): fiyat listesi + kategoriler
-export const GET = authed(async (user, _req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const GET = businessAuthed(async (user, _req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   const { shop, canManage } = await panelShop(user, shopId);
@@ -27,7 +27,7 @@ export const GET = authed(async (user, _req: Request, { params }: { params: Prom
 });
 
 // Hizmet ekle / düzenle: { serviceId?, categoryId, name, description?, price, minutes, isActive }
-export const POST = authed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const POST = businessAuthed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   const b = await body(req);

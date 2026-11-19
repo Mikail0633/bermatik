@@ -61,6 +61,8 @@ BEGIN
     THROW 50403, N'Dükkân eklemek için işletme hesabı gerekir.', 1;
   IF EXISTS (SELECT 1 FROM data.Users WHERE Id = @ActorId AND EmailVerifiedAt IS NULL AND Role <> 'admin')
     THROW 50409, N'Önce e-posta adresinizi doğrulayın.', 1;
+  IF EXISTS (SELECT 1 FROM data.Users WHERE Id = @ActorId AND BusinessVerifiedAt IS NULL AND Role <> 'admin')
+    THROW 50409, N'İşletme hesabınız henüz doğrulanmadı. Önce doğrulama belgenizi yükleyin.', 1;
   DECLARE @NormPhone varchar(16) = data.fn_NormalizePhone(@Phone);
   IF @NormPhone IS NULL THROW 50400, N'Geçerli bir dükkân telefonu girin.', 1;
   IF @Segment NOT IN ('erkek', 'kadin') THROW 50400, N'Dükkân türü geçersiz.', 1;
@@ -143,7 +145,7 @@ BEGIN
          s.ProvinceId, p.Name AS Province, s.DistrictId, d.Name AS District, s.NeighborhoodId, n.Name AS Neighborhood,
          s.Street, s.BuildingNo, s.AddressDetail, s.Latitude, s.Longitude, s.CoverImagePath,
          s.Status, CASE WHEN @IsMember = 1 OR @IsAdmin = 1 THEN s.StatusReason END AS StatusReason,
-         s.IsTemporarilyClosed, s.QueueAvgMinutes, s.IsClaimed, s.Source, s.NeedsReview,
+         s.IsTemporarilyClosed, s.QueueAvgMinutes, s.IsClaimed, s.Source, s.NeedsReview, s.AddedViaBermatik,
          o.IsOpen, o.OpensAt, o.ClosesAt, o.ClosedReason, o.ClosedUntil,
          data.fn_ShopIsCertified(s.Id) AS IsCertified,
          CAST(CASE WHEN ps.ServiceDescriptionsEnabled = 1 AND s.ShowServiceDescriptions = 1 THEN 1 ELSE 0 END AS bit) AS ShowServiceDescriptions,
@@ -172,7 +174,8 @@ CREATE OR ALTER PROCEDURE api.Shop_Search
   @ProvinceId tinyint = NULL, @DistrictId int = NULL, @Query nvarchar(100) = NULL, @Limit int = 50,
   @CategorySlug varchar(40) = NULL,  -- yalnızca bu hizmeti veren dükkânlar (örn. 'damat-trasi')
   @NeighborhoodId int = NULL,        -- yalnızca bu mahalledekiler
-  @ExcludeDistrictId int = NULL      -- "yakın çevre" listesinde ilçenin kendi dükkânları tekrar çıkmasın
+  @ExcludeDistrictId int = NULL,     -- "yakın çevre" listesinde ilçenin kendi dükkânları tekrar çıkmasın
+  @OnlyBermatik bit = 0              -- 1 = yalnızca "Bermatik ile eklenenler" (AddedViaBermatik = 1)
 AS
 BEGIN
   SET NOCOUNT ON;
@@ -213,6 +216,10 @@ BEGIN
       AND (@CategorySlug IS NULL OR EXISTS (SELECT 1 FROM data.ShopServices ss JOIN data.ServiceCategories c ON c.Id = ss.CategoryId
                                             WHERE ss.ShopId = data.Shops.Id AND ss.IsActive = 1 AND c.Slug = @CategorySlug));
 
+  IF @OnlyBermatik = 1
+    DELETE f FROM @Found f
+    WHERE NOT EXISTS (SELECT 1 FROM data.Shops s WHERE s.Id = f.Id AND s.AddedViaBermatik = 1);
+
   DECLARE @DayFrom datetime2(0) = data.fn_ToUtc(CAST(CAST(data.fn_IstanbulNow() AS date) AS datetime2(0)));  -- bugün 00:00 (İstanbul), UTC
 
   -- 2) Ayrıntılar: en yakın önce; konumsuzsa açık olanlar ve yüksek puanlılar önce
@@ -223,7 +230,8 @@ BEGIN
          data.fn_ShopIsCertified(s.Id) AS IsCertified,
          r.AvgRating, ISNULL(r.ReviewCount, 0) AS ReviewCount,
          ISNULL(t.TodayAppointments, 0) AS TodayAppointments,  -- bugünkü randevu sayısı (Sırayı gör)
-         s.IsClaimed                                 -- 0 = henüz Bermatik'e katılmadı
+         s.IsClaimed,                                -- 0 = henüz Bermatik'e katılmadı
+         s.AddedViaBermatik                          -- 1 = "Bermatik ile eklendi" rozeti
   FROM @Found f
   JOIN data.Shops s ON s.Id = f.Id
   JOIN data.Provinces p ON p.Id = s.ProvinceId

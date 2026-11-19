@@ -1,12 +1,12 @@
 import { call } from "@/lib/db";
-import { GUID, authed, body, fail, ok, str } from "@/lib/mobile";
+import { GUID, businessAuthed, body, fail, ok, str } from "@/lib/mobile";
 import { DATE, panelShop } from "@/lib/mobile-panel";
 
 type Row = { Id: string; StartDate: Date; EndDate: Date; Reason: string | null };
 const iso = (d: Date) => new Date(d).toISOString().slice(0, 10);
 
 // "Kapalı günler" (yalnızca sahip / admin): bayram, tatil, tadilat
-export const GET = authed(async (user, _req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const GET = businessAuthed(async (user, _req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   const { canManage } = await panelShop(user, shopId);
@@ -16,7 +16,7 @@ export const GET = authed(async (user, _req: Request, { params }: { params: Prom
 });
 
 // Kapalı gün ekle: { startDate, endDate?, reason? }
-export const POST = authed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const POST = businessAuthed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   const b = await body(req);

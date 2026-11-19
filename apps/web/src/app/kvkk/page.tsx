@@ -31,7 +31,7 @@ export default function Page() {
           <tr><td>İşlem güvenliği</td><td>Şifrenin geri çözülemez özeti, oturum bilgisi, IP adresi, tarayıcı/cihaz bilgisi, cihaz tanıma kimliği, giriş denemeleri</td><td>Tüm üyeler ve ziyaretçiler</td></tr>
           <tr><td>Konum</td><td>&quot;En yakın berberi bul&quot; dediğinizde tarayıcınızın verdiği anlık konum</td><td>İzin veren ziyaretçiler</td></tr>
           <tr><td>Görsel</td><td>Dükkân, personel, çalışma ve ürün fotoğrafları</td><td>İşletmeler ve personel</td></tr>
-          <tr><td>Belge</td><td>Vergi levhası / esnaf kaydı, ustalık veya kalfalık belgesi ve seri numarası</td><td>İşletme sahibi ve personel</td></tr>
+          <tr><td>Belge</td><td>İşletme hesabı açılırken yüklenen kimlik kartı ön yüzü, işyeri açma ruhsatı, vergi levhası veya esnaf kaydı ile belge numarası (T.C. no açık saklanmaz, yalnızca özeti ve maskeli hali); ustalık veya kalfalık belgesi ve seri numarası</td><td>İşletme sahibi ve personel</td></tr>
           <tr><td>Bildirim</td><td>Bildirim izni verdiğiniz cihazın bildirim adresi, bildirim tercihleri</td><td>İzin veren üyeler</td></tr>
           <tr><td>Kampanya izni</td><td>Kampanya e-postası / SMS onayınız veya reddiniz, tarihi ve o anki e-posta adresiniz / telefonunuz</td><td>Onay kutusunu işaretleyen üyeler</td></tr>
           <tr><td>İşletme bilgisi</td><td>Dükkân adı, adresi, telefonu, konumu, çalışma saatleri, fiyatlar</td><td>İşletmeler ve açık veri kaynakları</td></tr>
@@ -47,7 +47,7 @@ export default function Page() {
       <ul>
         <li><b>Üyelik, randevu ve siparişlerin yürütülmesi</b> (randevuyu dükkâna iletmek, size onay ve hatırlatma göndermek): sözleşmenin kurulması ve ifası için zorunlu olması (KVKK md. 5/2-c).</li>
         <li><b>Hesap güvenliği</b> (şifre koruması, çok fazla hatalı denemeyi engelleme, yeni bir cihazdan girişte sizi uyarma, robot kayıtlarını engelleme): meşru menfaat (md. 5/2-f) ve veri güvenliği yükümlülüğü (md. 12).</li>
-        <li><b>İşletme ve belge doğrulama</b> (dükkân sahipliğinin ve ustalık belgesinin doğrulanması): sözleşmenin ifası (md. 5/2-c) ve meşru menfaat (md. 5/2-f).</li>
+        <li><b>İşletme ve belge doğrulama</b> (işletme hesabının, dükkân sahipliğinin ve ustalık belgesinin doğrulanması; kimlik belgesi yalnızca sahte işletme hesaplarını önlemek için Bermatik ekibince görülür): sözleşmenin ifası (md. 5/2-c) ve meşru menfaat (md. 5/2-f).</li>
         <li><b>Hukuki yükümlülükler</b> (yetkili kurumların talepleri, kayıtların saklanması): kanunlarda açıkça öngörülmesi ve hukuki yükümlülük (md. 5/2-a, ç).</li>
         <li><b>Şikayet ve uyuşmazlıkların çözümü</b>: bir hakkın tesisi, kullanılması veya korunması (md. 5/2-e).</li>
         <li><b>Kampanya e-postası ve SMS</b>: yalnızca kayıtta ya da Hesabım sayfasında onay kutusunu işaretlediyseniz, onayınıza dayanarak (KVKK md. 5/1 ve 6563 sayılı Kanun md. 6). Onayınız ve reddiniz, kanunen tutulan İleti Yönetim Sistemi&apos;ne (İYS) kaydedilir. Vazgeçmek için Hesabım sayfasındaki anahtarı kapatmanız ya da iletideki &quot;İletiden çık&quot; bağlantısına basmanız yeterlidir. Randevu, hatırlatma ve şifre gibi bilgilendirme iletileri kampanya sayılmaz.</li>
@@ -57,6 +57,7 @@ export default function Page() {
       <h2>4. Kimlere aktarıyoruz?</h2>
       <ul>
         <li><b>Randevu aldığınız veya sipariş verdiğiniz dükkân:</b> adınız, telefonunuz ve randevu/sipariş bilgisi; hizmetin verilebilmesi için.</li>
+        <li><b>Nüfus ve Vatandaşlık İşleri Genel Müdürlüğü (NVİ):</b> işletme hesabını kimlik kartıyla doğrulayan kişinin T.C. kimlik numarası, adı, soyadı ve doğum yılı, yalnızca &quot;bu bilgiler birbiriyle eşleşiyor mu&quot; sorusu için NVİ&apos;nin kimlik doğrulama servisine sorulur. T.C. kimlik numarası Bermatik&apos;te açık olarak saklanmaz; yalnızca aynı belgenin iki hesapta kullanılmasını önlemek için geri çevrilemeyen özeti ve maskeli hali (ör. 123******46) saklanır.</li>
         <li><b>Hizmet aldığımız altyapı sağlayıcıları:</b> e-posta gönderimi (Google — Gmail) ve tarayıcı bildirimleri (kullandığınız tarayıcının bildirim servisi: Google, Mozilla, Apple veya Microsoft). Bu sağlayıcıların sunucuları yurt dışında bulunabilir; aktarım KVKK md. 9&apos;daki şartlara uygun olarak yapılır.</li>
         <li><b>İleti Yönetim Sistemi (İYS):</b> kampanya e-posta/SMS onayı verdiyseniz; onay veya ret bilginiz, e-posta adresiniz / telefonunuz ve tarihi, kanun gereği.</li>
         <li><b>Yetkili kamu kurum ve kuruluşları:</b> kanunen zorunlu olduğunda.</li>

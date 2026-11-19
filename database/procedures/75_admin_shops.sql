@@ -95,7 +95,7 @@ BEGIN
   IF @OwnerId IS NULL THROW 50404, N'Bu e-postayla kayıtlı kullanıcı bulunamadı. Önce siteye kayıt olmalı.', 1;
   IF NOT EXISTS (SELECT 1 FROM data.Shops WHERE Id = @ShopId) THROW 50404, N'Dükkân bulunamadı.', 1;
   BEGIN TRAN;
-    UPDATE data.Shops SET OwnerId = @OwnerId, IsClaimed = 1, UpdatedBy = @ActorId, UpdatedAt = SYSUTCDATETIME() WHERE Id = @ShopId;
+    UPDATE data.Shops SET OwnerId = @OwnerId, IsClaimed = 1, AddedViaBermatik = 1, UpdatedBy = @ActorId, UpdatedAt = SYSUTCDATETIME() WHERE Id = @ShopId;
     UPDATE data.Users SET Role = 'shop_owner', UpdatedAt = SYSUTCDATETIME() WHERE Id = @OwnerId AND Role IN ('customer', 'staff');
     DECLARE @EntityId nvarchar(64) = CONVERT(nvarchar(64), @ShopId);
     DECLARE @Details nvarchar(max) = (SELECT @OwnerEmail AS owner FOR JSON PATH, WITHOUT_ARRAY_WRAPPER);
@@ -132,10 +132,10 @@ BEGIN
   IF @Segment = 'erkek' SET @Seq = NEXT VALUE FOR data.ShopCodeErkek; ELSE SET @Seq = NEXT VALUE FOR data.ShopCodeKadin;
   SET @Code = data.fn_ShopCode(@Segment, @Seq);
   INSERT INTO data.Shops (Code, OwnerId, Segment, Name, Slug, Phone, ProvinceId, DistrictId, NeighborhoodId, Street, BuildingNo,
-                          Latitude, Longitude, Status, Source, ExternalRef, IsClaimed, NeedsReview)
+                          Latitude, Longitude, Status, Source, ExternalRef, IsClaimed, NeedsReview, AddedViaBermatik)
   VALUES (@Code, data.fn_SystemUserId(), @Segment, @Name, data.fn_UniqueShopSlug(@DistrictId, @Name, NULL), @NormPhone,
           @ProvinceId, @DistrictId, @NeighborhoodId, @Street, @BuildingNo, @Latitude, @Longitude,
-          'approved', @Source, @ExternalRef, 0, @NeedsReview);
+          'approved', @Source, @ExternalRef, 0, @NeedsReview, 0);   -- internetten toplandı: "Bermatik ile eklendi" değil
   SELECT 'inserted' AS Result;
 END
 GO

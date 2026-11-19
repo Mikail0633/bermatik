@@ -106,8 +106,8 @@ async function unsubscribeThisDevice() {
   await sub.unsubscribe();
 }
 
-export function NotifyPrefs({ slotAlerts, push, vapidKey }: { slotAlerts: boolean; push: boolean; vapidKey: string | null }) {
-  const [v, setV] = useState({ slotAlerts, push });
+export function NotifyPrefs({ slotAlerts, push, revisit, vapidKey }: { slotAlerts: boolean; push: boolean; revisit: boolean; vapidKey: string | null }) {
+  const [v, setV] = useState({ slotAlerts, push, revisit });
   const [msg, setMsg] = useState<HesapState>();
   const [pending, start] = useTransition();
   const save = (next: typeof v) => {
@@ -120,7 +120,7 @@ export function NotifyPrefs({ slotAlerts, push, vapidKey }: { slotAlerts: boolea
           if (err) { setV({ ...next, push: false }); setMsg({ error: err }); return; }
         }
         if (pushChanged && !next.push) await unsubscribeThisDevice();
-        setMsg(await setNotifyPrefs(next.slotAlerts, next.push));
+        setMsg(await setNotifyPrefs(next.slotAlerts, next.push, next.revisit));
       } catch {
         setV(v);
         setMsg({ error: "Bir sorun oldu, tekrar deneyin." });
@@ -142,6 +142,8 @@ export function NotifyPrefs({ slotAlerts, push, vapidKey }: { slotAlerts: boolea
       )}
       <Switch label="Boşalan randevu haberleri" text="Gittiğiniz dükkânda biri randevusunu iptal edince, zamanınız geldiyse haber verelim."
         checked={v.slotAlerts} disabled={pending} onChange={(slotAlerts) => save({ ...v, slotAlerts })} />
+      <Switch label="Traş / bakım zamanı hatırlatması" text="Son gelişinize göre tekrar gelme zamanınız gelince bir kez haber verelim (yalnızca gündüz)."
+        checked={v.revisit} disabled={pending} onChange={(revisit) => save({ ...v, revisit })} />
       {msg?.error && <p className="pt-2 text-sm text-closed">{msg.error}</p>}
       {msg?.ok && <p className="pt-2 text-sm text-open">{msg.ok}</p>}
     </div>

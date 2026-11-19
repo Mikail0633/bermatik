@@ -5,6 +5,7 @@ import { BadgeCheck, Home, Plus, Store } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { call } from "@/lib/db";
 import { Logo } from "@/components/Logo";
+import { BusinessLock } from "./BusinessLock";
 
 export const metadata: Metadata = { title: { default: "İşletme paneli", template: "%s | Bermatik İşletme" }, robots: { index: false } };
 
@@ -15,6 +16,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const user = await requireUser("/panel");
   if (user.Role === "customer") redirect("/isletme");
   if (!user.EmailVerified && user.Role !== "admin") redirect("/dogrula?sonra=/panel");
+  // İşletme hesabı (sahip ve personel) belge onayı / nüfusta doğru kimlik olmadan panele giremez
+  if (!user.BusinessVerified) return <BusinessLock user={user} />;
   const shops = await call<MyShop>("api.Shop_ListMine", { ActorId: user.Id });
   return (
     <div data-segment="erkek" className="min-h-dvh bg-bg text-ink lg:grid lg:grid-cols-[240px_1fr]">

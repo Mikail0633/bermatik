@@ -1,5 +1,5 @@
 import { call, callOne } from "@/lib/db";
-import { GUID, authed, body, fail, ok, str } from "@/lib/mobile";
+import { GUID, businessAuthed, body, fail, ok, str } from "@/lib/mobile";
 import { DATE, TIME } from "@/lib/mobile-panel";
 
 /**
@@ -8,7 +8,7 @@ import { DATE, TIME } from "@/lib/mobile-panel";
  *   { islem: "mola", start: "13:00", end: "14:00" }       → günlük mola (ikisi boşsa mola kaldırılır)
  *   { islem: "izin", weekday: 1-7 } ya da { islem: "izin", startDate, endDate, note? } → izin ekle
  */
-export const POST = authed(async (user, req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export const POST = businessAuthed(async (user, req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!GUID.test(id)) return fail("Personel bulunamadı.", 404);
   const b = await body(req);

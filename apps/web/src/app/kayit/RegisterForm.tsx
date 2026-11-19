@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { register, type FormState } from "../giris/actions";
 import { Field, FormError, SubmitButton } from "@/components/forms";
 import { BotFields } from "@/components/BotFields";
 import { PasswordField } from "@/components/PasswordField";
+import { DocumentFields } from "@/components/DocumentUpload";
 
 export function RegisterForm({ next, business = false, consentEnabled = false }: { next: string; business?: boolean; consentEnabled?: boolean }) {
   const [state, action] = useActionState<FormState, FormData>(register, undefined);
   const v = state?.values ?? {};
+  const [type, setType] = useState(v.accountType || (business ? "isletme" : "musteri"));
   return (
     <form action={action} className="space-y-4">
       <BotFields />
@@ -24,7 +26,7 @@ export function RegisterForm({ next, business = false, consentEnabled = false }:
           ].map((o) => (
             <label key={o.value} className="cursor-pointer rounded-xl border border-line p-3 has-[:checked]:border-primary has-[:checked]:bg-surface-2">
               <input type="radio" name="accountType" value={o.value} className="sr-only"
-                defaultChecked={(v.accountType || (business ? "isletme" : "musteri")) === o.value} />
+                checked={type === o.value} onChange={() => setType(o.value)} />
               <span className="block font-semibold">{o.title}</span>
               <span className="block text-xs text-muted">{o.text}</span>
             </label>
@@ -47,8 +49,20 @@ export function RegisterForm({ next, business = false, consentEnabled = false }:
         defaultValue={v.phone}
         hint="Randevunuzla ilgili dükkân size ulaşabilsin diye."
       />
-      <Field label="Doğum yılı (isteğe bağlı)" name="birthYear" inputMode="numeric" placeholder="1995" defaultValue={v.birthYear} />
+      <Field label={type === "isletme" ? "Doğum yılı" : "Doğum yılı (isteğe bağlı)"} name="birthYear" inputMode="numeric" placeholder="1995" defaultValue={v.birthYear}
+        hint={type === "isletme" ? "Kimlikle doğrulamada nüfus kaydıyla karşılaştırılır." : undefined} />
       <PasswordField />
+      {type === "isletme" && (
+        <fieldset className="space-y-2 rounded-xl border border-line p-3">
+          <legend className="px-1 text-sm font-semibold">İşletme doğrulama belgesi</legend>
+          <p className="text-xs text-muted">
+            Sahte işletme hesaplarını önlemek için bir belge istiyoruz. <b>Kimlik</b> seçerseniz ad, soyad, doğum yılı ve
+            T.C. numaranız nüfus kayıtlarından kontrol edilir ve paneliniz hemen açılır; diğer belgelerde Bermatik ekibi
+            inceleyip onaylayınca açılır. Bir belge yalnızca bir hesapta kullanılabilir. Belgenizi yalnızca Bermatik ekibi görür.
+          </p>
+          <DocumentFields defaultKind="kimlik" />
+        </fieldset>
+      )}
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="kvkk" required defaultChecked={v.kvkk === "on"} className="mt-1 h-4 w-4 accent-[var(--primary)]" />
         <span>

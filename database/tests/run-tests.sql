@@ -63,6 +63,15 @@ BEGIN CATCH INSERT #r VALUES (N'Yanlış e-posta kodu reddedilir', CASE WHEN ERR
 EXEC api.Email_VerifyCode @owner, 0x0000000000000000000000000000000000000000000000000000000000000000;
 DELETE @mailTo; INSERT @mailTo EXEC api.Email_CreateCode @worker, 0x2222222222222222222222222222222222222222222222222222222222222222;
 EXEC api.Email_VerifyCode @worker, 0x2222222222222222222222222222222222222222222222222222222222222222;
+-- İşletme hesabı doğrulaması: belge onayı olmadan dükkân eklenemez; kimlik nüfusta doğruysa hemen açılır
+BEGIN TRY EXEC api.Shop_Apply @owner, 'erkek', N'Belgesiz', NULL, N'0216 111 22 33', 34, @kadikoy, @caferaga, N'Moda Caddesi', N'12', NULL, 40.987, 29.026; INSERT #r VALUES (N'Belgesi doğrulanmamış işletme dükkân ekleyemez', 0, NULL); END TRY
+BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Belgesi doğrulanmamış işletme dükkân ekleyemez', CASE WHEN ERROR_MESSAGE() LIKE N'%doğrulanmadı%' THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
+BEGIN TRY EXEC api.OwnerDocument_Add @owner, NULL, NULL, 'kimlik', N'dogrulama/k0.jpg', 0xA0, N'123******46', 0xF0, 'yanlis'; INSERT #r VALUES (N'Nüfusta eşleşmeyen kimlik kabul edilmez', 0, NULL); END TRY
+BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Nüfusta eşleşmeyen kimlik kabul edilmez', CASE WHEN ERROR_NUMBER() = 50400 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
+INSERT #id EXEC api.OwnerDocument_Add @owner, NULL, NULL, 'kimlik', N'dogrulama/k1.jpg', 0xA1, N'123******46', 0xF1, 'dogru'; DELETE #id;
+DECLARE @ost TABLE (Verified bit, PendingDocs int);
+INSERT @ost EXEC api.Business_Status @owner;
+INSERT #r VALUES (N'Nüfusta doğru kimlikle işletme paneli hemen açılır', CASE WHEN (SELECT Verified FROM @ost) = 1 THEN 1 ELSE 0 END, NULL);
 BEGIN TRY EXEC api.Email_CreateCode @owner, 0x03; INSERT #r VALUES (N'Doğru kodla e-posta doğrulanır', 0, NULL); END TRY
 BEGIN CATCH INSERT #r VALUES (N'Doğru kodla e-posta doğrulanır', CASE WHEN ERROR_MESSAGE() LIKE N'%zaten doğrulandı%' THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
 
@@ -92,7 +101,7 @@ EXEC api.Auth_CreateSession @cust, @tok, @exp, '127.0.0.1', N'test';
 -- Tek oturum: aynı hesapla ikinci giriş, ilk oturumu kapatır
 DECLARE @tok2 binary(32) = HASHBYTES('SHA2_256', 'ikinci-cihaz');
 EXEC api.Auth_CreateSession @cust, @tok2, @exp, '127.0.0.2', N'ikinci cihaz';
-DECLARE @sess1 TABLE (Id uniqueidentifier, Email nvarchar(254), Role varchar(12), FirstName nvarchar(60), LastName nvarchar(60), BirthYear smallint, Phone varchar(16), TotpEnabled bit, ExpiresAt datetime2(0), EmailVerified bit);
+DECLARE @sess1 TABLE (Id uniqueidentifier, Email nvarchar(254), Role varchar(12), FirstName nvarchar(60), LastName nvarchar(60), BirthYear smallint, Phone varchar(16), TotpEnabled bit, ExpiresAt datetime2(0), EmailVerified bit, BusinessVerified bit);
 INSERT @sess1 EXEC api.Auth_GetSession @tok;
 INSERT #r VALUES (N'Aynı hesapla başka yerden girilince ilk oturum kapanır', CASE WHEN NOT EXISTS (SELECT 1 FROM @sess1) THEN 1 ELSE 0 END, NULL);
 -- 1 site + 1 telefon: telefondan giriş site oturumunu kapatmaz; ikinci telefon ilk telefonu kapatır
@@ -108,7 +117,7 @@ INSERT #r VALUES (N'İkinci telefon girişinde site oturumu açık kalır', CASE
 EXEC api.Auth_DeleteSession @mtok2;
 EXEC api.Auth_DeleteSession @tok2;
 EXEC api.Auth_CreateSession @cust, @tok, @exp, '127.0.0.1', N'test';
-DECLARE @sess TABLE (Id uniqueidentifier, Email nvarchar(254), Role varchar(12), FirstName nvarchar(60), LastName nvarchar(60), BirthYear smallint, Phone varchar(16), TotpEnabled bit, ExpiresAt datetime2(0), EmailVerified bit);
+DECLARE @sess TABLE (Id uniqueidentifier, Email nvarchar(254), Role varchar(12), FirstName nvarchar(60), LastName nvarchar(60), BirthYear smallint, Phone varchar(16), TotpEnabled bit, ExpiresAt datetime2(0), EmailVerified bit, BusinessVerified bit);
 INSERT @sess EXEC api.Auth_GetSession @tok;
 INSERT #r VALUES (N'Oturum açılır ve kullanıcı bulunur', CASE WHEN (SELECT Id FROM @sess) = @cust THEN 1 ELSE 0 END, NULL);
 EXEC api.Auth_DeleteSession @tok; DELETE @sess;
@@ -279,6 +288,16 @@ BEGIN TRY EXEC api.Appointment_Book @owner, @shop, @staff, @svcJson1, @t4, NULL,
 BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Telefon randevusu telefonsuz olmaz', CASE WHEN ERROR_NUMBER() = 50400 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
 INSERT #id EXEC api.Appointment_Book @owner, @shop, @staff, @svcJson1, @t4, NULL, N'Hasan Demir', N'0532 000 11 22';
 DECLARE @phoneAppt uniqueidentifier = (SELECT Id FROM #id); DELETE #id;
+-- Personel/sahip saati dakikasıyla serbest yazar (16:05 gibi listede olmayan saat)
+DECLARE @oddT datetime2(0) = DATEADD(minute, 245, @tomorrowNoon);
+INSERT #id EXEC api.Appointment_Book @worker, @shop, @staff, @svcJson1, @oddT, NULL, N'Ali Veli', N'05320003344'; DELETE #id;
+INSERT #r VALUES (N'Personel telefon randevusunu 16:05 gibi serbest saate yazabilir', 1, NULL);
+DECLARE @oddClash datetime2(0) = DATEADD(minute, 15, @oddT);
+BEGIN TRY EXEC api.Appointment_Book @worker, @shop, @staff, @svcJson1, @oddClash, NULL, N'Ayşe', N'05320005566'; INSERT #r VALUES (N'Çakışmada personele dolu saat aralığı söylenir', 0, NULL); END TRY
+BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Çakışmada personele dolu saat aralığı söylenir', CASE WHEN ERROR_MESSAGE() LIKE N'%16:05–16:35%' THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
+DECLARE @oddPast datetime2(0) = DATEADD(minute, 175, SYSUTCDATETIME());   -- Türkiye saatiyle 5 dk önce (UTC+3)
+BEGIN TRY EXEC api.Appointment_Book @worker, @shop, @staff, @svcJson1, @oddPast, NULL, N'Ayşe', N'05320005566'; INSERT #r VALUES (N'Personel de geçmiş saate randevu yazamaz', 0, NULL); END TRY
+BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Personel de geçmiş saate randevu yazamaz', CASE WHEN ERROR_NUMBER() = 50400 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
 REVERT;
 INSERT #r VALUES (N'Telefon randevusu direkt onaylı', CASE WHEN (SELECT Status + Source FROM data.Appointments WHERE Id = @phoneAppt) = 'acceptedphone' THEN 1 ELSE 0 END, NULL);
 EXECUTE AS USER = 'test_app';
@@ -302,7 +321,7 @@ EXEC api.Appointment_SetStatus @worker, @appt, 'completed';
 BEGIN TRY EXEC api.Review_Add @cust2, @appt, 1, N'Kötü'; INSERT #r VALUES (N'Başkasının randevusuna yorum yazılamaz', 0, NULL); END TRY
 BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Başkasının randevusuna yorum yazılamaz', CASE WHEN ERROR_NUMBER() = 50403 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
 INSERT #id EXEC api.Review_Add @cust, @appt, 5, N'Harika!'; DECLARE @review uniqueidentifier = (SELECT Id FROM #id); DELETE #id;
-DECLARE @rev TABLE (Id uniqueidentifier, Rating tinyint, Comment nvarchar(1000), CreatedAt datetime2(0), CustomerName nvarchar(70), StaffName nvarchar(60));
+DECLARE @rev TABLE (Id uniqueidentifier, Rating tinyint, Comment nvarchar(1000), CreatedAt datetime2(0), CustomerName nvarchar(70), StaffName nvarchar(60), ReplyText nvarchar(1000), ReplyAtLocal datetime2(0));
 INSERT @rev EXEC api.Review_List @shop;
 INSERT #r VALUES (N'Yorum görünür, isim "Ayşe Y." şeklinde', CASE WHEN (SELECT CustomerName FROM @rev) = N'Ayşe Y.' THEN 1 ELSE 0 END, (SELECT CustomerName FROM @rev));
 EXEC api.Admin_Review_SetHidden @admin, @review, 1; DELETE @rev;
@@ -313,6 +332,46 @@ EXEC api.Admin_Settings_Update @admin, @ReviewsEnabled = 0; DELETE @rev;
 INSERT @rev EXEC api.Review_List @shop;
 INSERT #r VALUES (N'Admin yorumları kapatınca hepsi gizlenir', CASE WHEN NOT EXISTS (SELECT 1 FROM @rev) THEN 1 ELSE 0 END, NULL);
 EXEC api.Admin_Settings_Update @admin, @ReviewsEnabled = 1;
+
+-- İşletme paneli: yoruma cevap, rapor, müşteri listesi (sahip tümünü, personel kendini görür)
+BEGIN TRY EXEC api.Review_Reply @cust2, @review, N'Sahte cevap'; INSERT #r VALUES (N'Dükkânla ilgisi olmayan yoruma cevap yazamaz', 0, NULL); END TRY
+BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Dükkânla ilgisi olmayan yoruma cevap yazamaz', CASE WHEN ERROR_NUMBER() = 50403 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
+DECLARE @pnUnread TABLE (UnreadCount int);
+INSERT @pnUnread EXEC api.Notification_UnreadCount @cust; DECLARE @pnUnread0 int = (SELECT UnreadCount FROM @pnUnread); DELETE @pnUnread;
+EXEC api.Review_Reply @worker, @review, N'Teşekkürler, yine bekleriz!';
+INSERT @pnUnread EXEC api.Notification_UnreadCount @cust; DECLARE @pnUnread1 int = (SELECT UnreadCount FROM @pnUnread); DELETE @pnUnread;
+DELETE @rev; INSERT @rev EXEC api.Review_List @shop;
+INSERT #r VALUES (N'Personel kendisi hakkındaki yoruma cevap yazar, cevap sayfada görünür, müşteriye bildirim gider',
+  CASE WHEN (SELECT ReplyText FROM @rev WHERE Id = @review) = N'Teşekkürler, yine bekleriz!' AND @pnUnread1 = @pnUnread0 + 1 THEN 1 ELSE 0 END, NULL);
+EXEC api.Review_Reply @owner, @review, N'Teşekkür ederiz!';
+INSERT @pnUnread EXEC api.Notification_UnreadCount @cust; DECLARE @pnUnread2 int = (SELECT UnreadCount FROM @pnUnread); DELETE @pnUnread;
+INSERT #r VALUES (N'Cevap düzeltilince ikinci bildirim gitmez', CASE WHEN @pnUnread2 = @pnUnread1 THEN 1 ELSE 0 END, NULL);
+DECLARE @pnRev TABLE (Id uniqueidentifier, Rating tinyint, Comment nvarchar(1000), CreatedAtLocal datetime2(0), CustomerName nvarchar(70), StaffName nvarchar(60),
+  ReplyText nvarchar(1000), ReplyAtLocal datetime2(0), ReplyByName nvarchar(121));
+INSERT @pnRev EXEC api.Panel_Reviews @worker, @shop;
+INSERT #r VALUES (N'Personel panelinde kendisi hakkındaki yorum görünür', CASE WHEN EXISTS (SELECT 1 FROM @pnRev WHERE Id = @review AND ReplyText = N'Teşekkür ederiz!') THEN 1 ELSE 0 END, NULL);
+DECLARE @pnRep TABLE (Period varchar(5), FromDate date, ToDate date, FullView bit, Appointments int, Completed int, Accepted int, Pending int,
+  Cancelled int, NoShows int, Revenue decimal(12, 2), ExpectedRevenue decimal(12, 2), Customers int, NewCustomers int, PhoneBookings int,
+  ProductRevenue decimal(12, 2), PrevAppointments int, PrevRevenue decimal(12, 2), PrevCustomers int,
+  SeriesJson nvarchar(max), StaffJson nvarchar(max), ServicesJson nvarchar(max));
+INSERT @pnRep EXEC api.Panel_Report @owner, @shop, 'gun', @tomorrow;
+INSERT #r VALUES (N'Rapor: sahip günlük geliri ve personel kırılımını görür',
+  CASE WHEN (SELECT FullView FROM @pnRep) = 1 AND (SELECT Completed FROM @pnRep) >= 1 AND (SELECT Revenue FROM @pnRep) > 0
+        AND (SELECT StaffJson FROM @pnRep) IS NOT NULL AND (SELECT NewCustomers FROM @pnRep) >= 1
+        AND (SELECT COUNT(*) FROM OPENJSON((SELECT SeriesJson FROM @pnRep))) = 24 THEN 1 ELSE 0 END, NULL);
+DELETE @pnRep; INSERT @pnRep EXEC api.Panel_Report @worker, @shop, 'ay', @tomorrow;
+INSERT #r VALUES (N'Rapor: personel yalnızca kendini görür (personel kırılımı yok)',
+  CASE WHEN (SELECT FullView FROM @pnRep) = 0 AND (SELECT StaffJson FROM @pnRep) IS NULL AND (SELECT ProductRevenue FROM @pnRep) IS NULL
+        AND (SELECT Completed FROM @pnRep) >= 1 THEN 1 ELSE 0 END, NULL);
+BEGIN TRY EXEC api.Panel_Report @cust, @shop; INSERT #r VALUES (N'Müşteri dükkân raporunu göremez', 0, NULL); END TRY
+BEGIN CATCH INSERT #r VALUES (N'Müşteri dükkân raporunu göremez', CASE WHEN ERROR_NUMBER() = 50403 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
+DECLARE @pnCust TABLE (CustKey nvarchar(160), Name nvarchar(121), Phone varchar(16), HasAccount bit, Visits int, TotalSpent decimal(12, 2), NoShows int,
+  LastVisitLocal datetime2(0), FirstVisitLocal datetime2(0), NextAppointmentLocal datetime2(0), LastStaffName nvarchar(60));
+INSERT @pnCust EXEC api.Panel_Customers @owner, @shop;
+INSERT #r VALUES (N'Müşteri listesi: geliş sayısı ve harcama görünür',
+  CASE WHEN EXISTS (SELECT 1 FROM @pnCust WHERE CustKey = CONVERT(nvarchar(40), @cust) AND Visits >= 1 AND TotalSpent > 0 AND HasAccount = 1) THEN 1 ELSE 0 END, NULL);
+BEGIN TRY EXEC api.Panel_Customers @cust, @shop; INSERT #r VALUES (N'Müşteri, dükkânın müşteri listesini göremez', 0, NULL); END TRY
+BEGIN CATCH INSERT #r VALUES (N'Müşteri, dükkânın müşteri listesini göremez', CASE WHEN ERROR_NUMBER() = 50403 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
 
 -- Canlı sıra
 INSERT #q EXEC api.Queue_Join @cust2, @shop;
@@ -429,7 +488,7 @@ INSERT #r VALUES (N'Zamanlayıcı: 30 gün önce gelen "zamanı geldi", 3 gün �
 EXECUTE AS USER = 'test_app';
 
 -- Bildirim izinleri (varsayılan kapalı)
-DECLARE @prefs TABLE (PushOptIn bit, SlotAlertsOptIn bit, HasDevice bit);
+DECLARE @prefs TABLE (PushOptIn bit, SlotAlertsOptIn bit, HasDevice bit, RevisitRemindersOptIn bit);
 INSERT @prefs EXEC api.Notify_GetPreferences @cust3;
 INSERT #r VALUES (N'Bildirim izinleri varsayılan olarak kapalı',
   CASE WHEN (SELECT CAST(PushOptIn AS int) + CAST(SlotAlertsOptIn AS int) FROM @prefs) = 0 THEN 1 ELSE 0 END, NULL);
@@ -456,6 +515,29 @@ INSERT #r VALUES (N'İptalde haber yalnızca zamanı gelen müşteriye (Can) git
   CASE WHEN EXISTS (SELECT 1 FROM data.Notifications WHERE UserId = @cust3 AND Kind = 'slot_opened' AND PushStatus = 'queued')
         AND NOT EXISTS (SELECT 1 FROM data.Notifications WHERE UserId = @cust4 AND Kind = 'slot_opened')
         AND NOT EXISTS (SELECT 1 FROM data.Notifications WHERE UserId = @cust AND Kind = 'slot_opened') THEN 1 ELSE 0 END, NULL);
+-- "Traş zamanın geldi" hatırlatması: zamanı gelen Can'a 1 kez, yeni traş olan Efe'ye hiç
+INSERT #r VALUES (N'"Zamanın geldi" hatırlatması varsayılan açık', CASE WHEN (SELECT RevisitRemindersOptIn FROM @prefs) = 1 THEN 1 ELSE 0 END, NULL);
+DECLARE @revq TABLE (Enqueued int);
+INSERT @revq EXEC api.Worker_EnqueueRevisitReminders @IgnoreQuietHours = 1;
+INSERT #r VALUES (N'Zamanı gelen müşteriye "traş zamanın geldi" gider (dükkân sayfası bağlantısıyla), yeni gelene gitmez',
+  CASE WHEN EXISTS (SELECT 1 FROM data.Notifications WHERE UserId = @cust3 AND Kind = 'revisit_due' AND PushStatus = 'queued' AND Title LIKE N'Traş%' AND Url LIKE N'/erkek/%')
+        AND NOT EXISTS (SELECT 1 FROM data.Notifications WHERE UserId = @cust4 AND Kind = 'revisit_due') THEN 1 ELSE 0 END,
+  (SELECT TOP (1) Title + N' | ' + Body FROM data.Notifications WHERE UserId = @cust3 AND Kind = 'revisit_due'));
+INSERT #r VALUES (N'İleri tarihli randevusu olan müşteriye hatırlatma gitmez',
+  CASE WHEN NOT EXISTS (SELECT 1 FROM data.Notifications n WHERE n.Kind = 'revisit_due'
+                          AND EXISTS (SELECT 1 FROM data.Appointments x WHERE x.CustomerId = n.UserId AND x.Status IN ('pending', 'accepted') AND x.StartsAt > SYSUTCDATETIME()))
+       THEN 1 ELSE 0 END, NULL);
+DELETE @revq; INSERT @revq EXEC api.Worker_EnqueueRevisitReminders @IgnoreQuietHours = 1;
+INSERT #r VALUES (N'Aynı ziyaret döngüsünde hatırlatma ikinci kez gitmez',
+  CASE WHEN (SELECT COUNT(*) FROM data.Notifications WHERE UserId = @cust3 AND Kind = 'revisit_due') = 1 THEN 1 ELSE 0 END, NULL);
+EXEC api.Notify_SetPreferences @cust3, 1, 1, 0;
+DELETE FROM data.Notifications WHERE UserId = @cust3 AND Kind = 'revisit_due';
+DELETE @revq; INSERT @revq EXEC api.Worker_EnqueueRevisitReminders @IgnoreQuietHours = 1;
+INSERT #r VALUES (N'Müşteri kapatınca "zamanın geldi" hatırlatması gitmez',
+  CASE WHEN NOT EXISTS (SELECT 1 FROM data.Notifications WHERE UserId = @cust3 AND Kind = 'revisit_due') THEN 1 ELSE 0 END, NULL);
+EXEC api.Notify_SetPreferences @cust3, 1, 1;   -- 4. alan verilmezse ayar değişmez
+INSERT #r VALUES (N'Eski uygulama ayar kaydedince hatırlatma ayarı bozulmaz', CASE WHEN (SELECT RevisitRemindersOptIn FROM data.Users WHERE Id = @cust3) = 0 THEN 1 ELSE 0 END, NULL);
+EXEC api.Notify_SetPreferences @cust3, 1, 1, 1;
 EXECUTE AS USER = 'test_app';
 
 -- Kampanyalar
@@ -519,7 +601,7 @@ INSERT #r VALUES (N'Zil listesi: bildirimler okundu yapılabilir', CASE WHEN NOT
 DECLARE @search TABLE (Id uniqueidentifier, Code varchar(12), Segment varchar(5), Name nvarchar(100), Slug varchar(120), ProvinceSlug varchar(40),
   DistrictSlug varchar(60), Phone varchar(16), Street nvarchar(120), BuildingNo nvarchar(20), Neighborhood nvarchar(200), District nvarchar(60),
   Province nvarchar(40), Latitude decimal(9, 6), Longitude decimal(9, 6), CoverImagePath nvarchar(300), DistanceKm float, IsOpen bit,
-  OpensAt time(0), ClosesAt time(0), IsCertified bit, AvgRating decimal(2, 1), ReviewCount int, TodayAppointments int, IsClaimed bit);
+  OpensAt time(0), ClosesAt time(0), IsCertified bit, AvgRating decimal(2, 1), ReviewCount int, TodayAppointments int, IsClaimed bit, AddedViaBermatik bit);
 INSERT @search EXEC api.Shop_Search 'erkek', 40.99, 29.03, 5;
 INSERT #r VALUES (N'Yakındaki dükkân bulundu (konumla), açık, puan 5.0',
   CASE WHEN (SELECT COUNT(*) FROM @search) = 1 AND (SELECT IsOpen FROM @search) = 1 AND (SELECT AvgRating FROM @search) = 5.0 THEN 1 ELSE 0 END,
@@ -530,6 +612,14 @@ DELETE @search; INSERT @search EXEC api.Shop_Search 'erkek', NULL, NULL, 10, 34,
 INSERT #r VALUES (N'İl/ilçe ile arama (konumsuz)', CASE WHEN (SELECT COUNT(*) FROM @search) = 1 THEN 1 ELSE 0 END, NULL);
 DELETE @search; INSERT @search EXEC api.Shop_Search @Segment = 'erkek', @Query = N'Kadık';
 INSERT #r VALUES (N'Aramada ilçe adı da eşleşir (Kadık → Kadıköy dükkânı)', CASE WHEN EXISTS (SELECT 1 FROM @search WHERE Id = @shop) THEN 1 ELSE 0 END, NULL);
+-- "Bermatik ile eklenenler": dükkân sahibinin açtığı dükkân işaretli gelir
+DELETE @search; INSERT @search EXEC api.Shop_Search @Segment = 'erkek', @OnlyBermatik = 1;
+REVERT;
+INSERT #r VALUES (N'Dükkân sahibinin açtığı dükkân "Bermatik ile eklendi" olarak işaretlenir ve bölümde çıkar',
+  CASE WHEN (SELECT AddedViaBermatik FROM @search WHERE Id = @shop) = 1
+        AND NOT EXISTS (SELECT 1 FROM @search WHERE AddedViaBermatik = 0) THEN 1 ELSE 0 END,
+  (SELECT CAST(COUNT(*) AS nvarchar) FROM @search));
+EXECUTE AS USER = 'test_app';
 -- Sırayı gör: bugünkü randevular (isimsiz) ve kartlardaki bugünkü randevu sayısı
 REVERT;
 DECLARE @nowUtc datetime2(0) = SYSUTCDATETIME();
@@ -844,6 +934,8 @@ BEGIN TRY EXEC api.Admin_Shop_Create @owner, 'erkek', N'Sahte', NULL, NULL, 34, 
 BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Admin olmayan dükkân ekleyemez', CASE WHEN ERROR_NUMBER() = 50403 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
 BEGIN TRY EXEC api.Claim_Create @cust3, @unclaimed, N'05441112255'; INSERT #r VALUES (N'Müşteri hesabı dükkân sahiplenemez', 0, NULL); END TRY
 BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Müşteri hesabı dükkân sahiplenemez', CASE WHEN ERROR_NUMBER() = 50403 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
+-- personel (@worker) da kimliğini doğrular
+INSERT #id EXEC api.OwnerDocument_Add @worker, NULL, NULL, 'kimlik', N'dogrulama/k2.jpg', 0xA2, N'456******10', 0xF2, 'dogru'; DELETE #id;
 INSERT #id EXEC api.Claim_Create @worker, @unclaimed, N'0544 111 22 33', N'Dükkân benim'; DECLARE @claimId uniqueidentifier = (SELECT Id FROM #id); DELETE #id;
 INSERT #id EXEC api.OwnerDocument_Add @worker, NULL, @claimId, 'vergi_levhasi', N'dogrulama/test.jpg'; DECLARE @docId uniqueidentifier = (SELECT Id FROM #id); DELETE #id;
 BEGIN TRY EXEC api.OwnerDocument_Add @cust, NULL, @claimId, 'vergi_levhasi', N'dogrulama/x.jpg'; INSERT #r VALUES (N'Başkasının talebine belge eklenemez', 0, NULL); END TRY
@@ -853,9 +945,50 @@ INSERT @docFile EXEC api.OwnerDocument_GetFile @cust, @docId;
 INSERT #r VALUES (N'Belge dosyasını başkası göremez', CASE WHEN NOT EXISTS (SELECT 1 FROM @docFile) THEN 1 ELSE 0 END, NULL);
 INSERT @docFile EXEC api.OwnerDocument_GetFile @admin, @docId;
 EXEC api.Admin_OwnerDocument_Review @admin, @docId, 'approved';
-DECLARE @docs TABLE (Id uniqueidentifier, Kind varchar(16), Status varchar(10), ReviewNote nvarchar(300), CreatedAtLocal datetime2(0));
+DECLARE @docs TABLE (Id uniqueidentifier, Kind varchar(16), Status varchar(10), ReviewNote nvarchar(300), CreatedAtLocal datetime2(0), NumberMasked nvarchar(40), NviResult varchar(6));
 INSERT @docs EXEC api.OwnerDocument_List @admin, NULL, @claimId;
 INSERT #r VALUES (N'Admin belgeyi görür ve onaylar', CASE WHEN EXISTS (SELECT 1 FROM @docFile) AND (SELECT Status FROM @docs) = 'approved' THEN 1 ELSE 0 END, NULL);
+-- İşletme hesabı belgesi (kayıt ekranında): dükkân/talep olmadan hesaba eklenir
+INSERT #id EXEC api.OwnerDocument_Add @owner, NULL, NULL, 'kimlik', N'dogrulama/kimlik.jpg'; DECLARE @accDoc uniqueidentifier = (SELECT Id FROM #id); DELETE #id;
+BEGIN TRY EXEC api.OwnerDocument_Add @cust3, NULL, NULL, 'ruhsat', N'dogrulama/x.jpg'; INSERT #r VALUES (N'Müşteri hesabına hesap belgesi eklenemez', 0, NULL); END TRY
+BEGIN CATCH INSERT #r VALUES (N'Müşteri hesabına hesap belgesi eklenemez', CASE WHEN ERROR_NUMBER() = 50403 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
+DECLARE @accDocs TABLE (Id uniqueidentifier, Kind varchar(16), Status varchar(10), ReviewNote nvarchar(300), CreatedAtLocal datetime2(0), NumberMasked nvarchar(40), NviResult varchar(6));
+INSERT @accDocs EXEC api.OwnerDocument_List @owner, NULL, NULL, 1;
+DECLARE @accAdmin TABLE (Id uniqueidentifier, Kind varchar(16), Status varchar(10), ReviewNote nvarchar(300), CreatedAtLocal datetime2(0),
+  NumberMasked nvarchar(40), NviResult varchar(6), UserId uniqueidentifier, UserName nvarchar(121), Email nvarchar(254), Phone varchar(16), Role varchar(12), BirthYear smallint, PanelOpen bit, Shops nvarchar(max));
+INSERT @accAdmin EXEC api.Admin_AccountDocument_List @admin;
+INSERT #r VALUES (N'Hesap belgesi sahibinde ve admin listesinde görünür',
+  CASE WHEN EXISTS (SELECT 1 FROM @accDocs WHERE Id = @accDoc AND Kind = 'kimlik') AND EXISTS (SELECT 1 FROM @accAdmin WHERE Id = @accDoc) THEN 1 ELSE 0 END, NULL);
+-- Aynı belge iki hesapta kullanılamaz; numara değilse dosya da kontrol edilir
+BEGIN TRY EXEC api.OwnerDocument_Add @worker, NULL, NULL, 'kimlik', N'dogrulama/x1.jpg', 0xA1, N'123******46', 0xE1, 'dogru'; INSERT #r VALUES (N'Aynı kimlik numarası ikinci hesapta kullanılamaz', 0, NULL); END TRY
+BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Aynı kimlik numarası ikinci hesapta kullanılamaz', CASE WHEN ERROR_NUMBER() = 50409 AND ERROR_MESSAGE() LIKE N'%numarası%' THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
+BEGIN TRY EXEC api.OwnerDocument_Add @worker, NULL, NULL, 'ruhsat', N'dogrulama/x2.jpg', 0xB9, N'R-***9', 0xF1, NULL; INSERT #r VALUES (N'Aynı belge dosyası ikinci hesapta kullanılamaz', 0, NULL); END TRY
+BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Aynı belge dosyası ikinci hesapta kullanılamaz', CASE WHEN ERROR_NUMBER() = 50409 AND ERROR_MESSAGE() LIKE N'%dosyası%' THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
+-- Ruhsat (nüfus kontrolü yok): admin onaylayana kadar panel kapalı; "Uygun değil" denince panel kapanır
+DECLARE @biz uniqueidentifier;
+INSERT #id EXEC api.Auth_Register N'biz@test.com', N'hash', N'Ali', N'Ruhsat', 1990, N'05551119999', @KvkkAccepted = 1, @IsBusiness = 1; SELECT @biz = Id FROM #id; DELETE #id;
+INSERT #id EXEC api.OwnerDocument_Add @biz, NULL, NULL, 'ruhsat', N'dogrulama/r1.jpg', 0xB1, N'R-***1', 0xD1, NULL; DECLARE @bizDoc uniqueidentifier = (SELECT Id FROM #id); DELETE #id;
+DECLARE @bst TABLE (Verified bit, PendingDocs int);
+INSERT @bst EXEC api.Business_Status @biz;
+INSERT #r VALUES (N'Ruhsatla panel admin onayına kadar kapalı', CASE WHEN (SELECT Verified FROM @bst) = 0 AND (SELECT PendingDocs FROM @bst) = 1 THEN 1 ELSE 0 END, NULL);
+DELETE @notes; INSERT @notes EXEC api.Notification_ListMine @admin;
+INSERT #r VALUES (N'İşletme belgesi gelince admine bildirim düşer',
+  CASE WHEN EXISTS (SELECT 1 FROM @notes WHERE Kind = 'admin_document' AND Body LIKE N'Ali Ruhsat%ruhsat%Onayınızı bekliyor%' AND Url = N'/admin/belgeler') THEN 1 ELSE 0 END,
+  (SELECT TOP (1) Body FROM @notes WHERE Kind = 'admin_document'));
+DECLARE @alertTo TABLE (Email nvarchar(254), FirstName nvarchar(60));
+INSERT @alertTo EXEC api.Admin_AlertRecipients;
+INSERT #r VALUES (N'Admin e-posta uyarısı yalnızca adminlere gider', CASE WHEN (SELECT COUNT(*) FROM @alertTo) = 1 AND EXISTS (SELECT 1 FROM @alertTo WHERE Email = N'admin@test.com') THEN 1 ELSE 0 END, NULL);
+EXEC api.Admin_OwnerDocument_Review @admin, @bizDoc, 'approved';
+DELETE @bst; INSERT @bst EXEC api.Business_Status @biz;
+DECLARE @bizUnread TABLE (UnreadCount int);
+INSERT @bizUnread EXEC api.Notification_UnreadCount @biz;
+INSERT #r VALUES (N'Admin onaylayınca panel açılır ve bildirim gider',
+  CASE WHEN (SELECT Verified FROM @bst) = 1 AND (SELECT UnreadCount FROM @bizUnread) >= 1 THEN 1 ELSE 0 END, NULL);
+EXEC api.Admin_OwnerDocument_Review @admin, @bizDoc, 'rejected', N'Okunmuyor';
+DELETE @bst; INSERT @bst EXEC api.Business_Status @biz;
+INSERT #r VALUES (N'Belge "uygun değil" olunca panel kapanır', CASE WHEN (SELECT Verified FROM @bst) = 0 THEN 1 ELSE 0 END, NULL);
+INSERT #id EXEC api.OwnerDocument_Add @worker, NULL, NULL, 'ruhsat', N'dogrulama/r2.jpg', 0xB1, N'R-***1', 0xD1, NULL; DELETE #id;
+INSERT #r VALUES (N'Reddedilen belge başka hesapta kullanılabilir', 1, NULL);
 BEGIN TRY EXEC api.Claim_Create @worker, @unclaimed, N'05441112233'; INSERT #r VALUES (N'Aynı dükkân için ikinci açık talep olmaz', 0, NULL); END TRY
 BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Aynı dükkân için ikinci açık talep olmaz', CASE WHEN ERROR_NUMBER() = 50409 THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
 EXEC api.Admin_Claim_Resolve @admin, @claimId, 1, N'Telefonla doğrulandı';
@@ -1036,7 +1169,53 @@ INSERT #r VALUES (N'Hesap silinince iki kanal için de ret kaydı yazılır',
 -- Dükkân kodu 9999'u geçince 5 haneye çıkar (eskiden tıkanıyordu)
 INSERT #r VALUES (N'Dükkân kodu 10.000. dükkânda da üretilir', CASE WHEN data.fn_ShopCode('erkek', 7) = 'BRM-E-0007' AND data.fn_ShopCode('kadin', 12345) = 'BRM-K-12345' AND LEN(data.fn_ShopCode('erkek', 999999)) <= 12 THEN 1 ELSE 0 END, NULL);
 
+-- Personel: sahibi onaylı dükkâna davet koduyla katılan personelden belge istenmez (2026-11-19)
+DECLARE @kalfa uniqueidentifier, @kalfaStaff uniqueidentifier, @kalfaCode char(12);
+DECLARE @shopOwner uniqueidentifier = (SELECT OwnerId FROM data.Shops WHERE Id = @shop);
+DECLARE @ownerVerifiedAt datetime2(0) = (SELECT BusinessVerifiedAt FROM data.Users WHERE Id = @shopOwner);
+INSERT #id EXEC api.Auth_Register N'kalfa2@test.com', N'hash', N'Can', N'Kalfa', 1999, N'05551118881', @KvkkAccepted = 1; SELECT @kalfa = Id FROM #id; DELETE #id;
+INSERT #id EXEC api.Staff_Save @admin, @shop, NULL, N'Can Kalfa'; SELECT @kalfaStaff = Id FROM #id; DELETE #id;
+DECLARE @kst TABLE (Verified bit, PendingDocs int);
+INSERT @kst EXEC api.Business_Status @kalfa;
+INSERT #r VALUES (N'Davet kodu girmeden personel paneli kapalı', CASE WHEN (SELECT Verified FROM @kst) = 0 THEN 1 ELSE 0 END, NULL);
+DECLARE @kinv TABLE (InviteCode char(12));
+INSERT @kinv EXEC api.Staff_CreateInvite @admin, @kalfaStaff; SELECT @kalfaCode = InviteCode FROM @kinv;
+DECLARE @kclaim TABLE (StaffId uniqueidentifier, ShopId uniqueidentifier);
+INSERT @kclaim EXEC api.Staff_ClaimInvite @kalfa, @kalfaCode;
+DELETE @kst; INSERT @kst EXEC api.Business_Status @kalfa;
+INSERT #r VALUES (N'Onaylı sahibin davet ettiği personelin paneli belgesiz açılır',
+  CASE WHEN (SELECT Verified FROM @kst) = 1 AND (SELECT BusinessVerifiedAt FROM data.Users WHERE Id = @kalfa) IS NULL THEN 1 ELSE 0 END, NULL);
+BEGIN TRY EXEC api.Shop_Apply @kalfa, 'erkek', N'Kalfanın Dükkânı', NULL, N'0216 111 22 33', 34, @kadikoy, @caferaga, N'Moda Caddesi', N'12', NULL, 40.987, 29.026; INSERT #r VALUES (N'Davetle gelen personel belgesiz dükkân açamaz', 0, NULL); END TRY
+BEGIN CATCH IF XACT_STATE() <> 0 ROLLBACK; INSERT #r VALUES (N'Davetle gelen personel belgesiz dükkân açamaz', CASE WHEN ERROR_NUMBER() IN (50403, 50409) THEN 1 ELSE 0 END, ERROR_MESSAGE()); END CATCH
+UPDATE data.Users SET BusinessVerifiedAt = NULL WHERE Id = @shopOwner AND Role <> 'admin';
+INSERT #r VALUES (N'Sahibin onayı geri alınınca personelin paneli de kapanır',
+  CASE WHEN data.fn_IsBusinessVerified(@kalfa) = 0 OR (SELECT Role FROM data.Users WHERE Id = @shopOwner) = 'admin' THEN 1 ELSE 0 END, NULL);
+UPDATE data.Users SET BusinessVerifiedAt = @ownerVerifiedAt WHERE Id = @shopOwner;
+INSERT #r VALUES (N'Sahip yeniden onaylanınca personelin paneli açılır', CASE WHEN data.fn_IsBusinessVerified(@kalfa) = 1 THEN 1 ELSE 0 END, NULL);
+DELETE #id; INSERT #id EXEC api.Staff_Save @admin, @shop, @kalfaStaff, N'Can Kalfa', @IsActive = 0; DELETE #id;
+DELETE @kst; INSERT @kst EXEC api.Business_Status @kalfa;
+INSERT #r VALUES (N'Dükkândan çıkarılan personelin paneli kapanır', CASE WHEN (SELECT Verified FROM @kst) = 0 THEN 1 ELSE 0 END, NULL);
+INSERT #r VALUES (N'Kendi dükkânı olan, onayı geri alınmış hesap personellik yoluyla açılmaz',
+  CASE WHEN NOT EXISTS (SELECT 1 FROM data.Users u WHERE u.Role <> 'admin' AND u.BusinessVerifiedAt IS NULL
+                          AND EXISTS (SELECT 1 FROM data.Shops WHERE OwnerId = u.Id) AND data.fn_IsBusinessVerified(u.Id) = 1) THEN 1 ELSE 0 END, NULL);
+
+-- "Bermatik ile eklendi" işareti: admin ekledi / sahibi açtı / sahiplenildi = 1; yalnızca internetten toplanan = 0
+EXEC data.usp_ImportOsmShop 'node/999001', 'erkek', N'İnternetten Berber', NULL, 34, @kadikoy, @caferaga, N'Moda Caddesi', N'1', 40.9881, 29.0271, 0;
+INSERT #r VALUES (N'İnternetten toplanan dükkân "Bermatik ile eklendi" sayılmaz',
+  CASE WHEN (SELECT AddedViaBermatik FROM data.Shops WHERE ExternalRef = 'node/999001') = 0 THEN 1 ELSE 0 END, NULL);
+INSERT #r VALUES (N'Admin / sahada eklenen dükkân "Bermatik ile eklendi" olur',
+  CASE WHEN (SELECT AddedViaBermatik FROM data.Shops WHERE Id = @unclaimed) = 1 THEN 1 ELSE 0 END, NULL);
+INSERT #r VALUES (N'Sahibi katılan her dükkân "Bermatik ile eklendi" işaretli',
+  CASE WHEN NOT EXISTS (SELECT 1 FROM data.Shops s JOIN data.Users u ON u.Id = s.OwnerId
+                        WHERE s.IsClaimed = 1 AND s.AddedViaBermatik = 0 AND u.Role <> 'admin' AND u.Id <> data.fn_SystemUserId()) THEN 1 ELSE 0 END, NULL);
+UPDATE data.Shops SET IsClaimed = 0, OwnerId = data.fn_SystemUserId() WHERE ExternalRef = 'node/999001';
+DECLARE @netShop uniqueidentifier = (SELECT Id FROM data.Shops WHERE ExternalRef = 'node/999001');
+EXEC api.Admin_Shop_AssignOwner @admin, @netShop, N'owner@test.com';
+INSERT #r VALUES (N'İnternetten toplanan dükkân sahibine atanınca "Bermatik ile eklendi" olur',
+  CASE WHEN (SELECT AddedViaBermatik FROM data.Shops WHERE Id = @netShop) = 1 THEN 1 ELSE 0 END, NULL);
+
 -- =====================================================================
 SELECT CONCAT(CASE WHEN Ok = 1 THEN N'  ✓ ' ELSE N'  ✗ ' END, Name, CASE WHEN Ok = 0 THEN N'  →  ' + ISNULL(Info, N'') ELSE N'' END) FROM #r ORDER BY No;
 SELECT CONCAT(N'Sonuç: ', SUM(CAST(Ok AS int)), N' başarılı, ', SUM(1 - CAST(Ok AS int)), N' başarısız') FROM #r;
 IF EXISTS (SELECT 1 FROM #r WHERE Ok = 0) THROW 50000, N'Başarısız test var.', 1;
+

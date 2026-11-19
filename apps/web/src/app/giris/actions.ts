@@ -5,9 +5,11 @@ import { after } from "next/server";
 import { z } from "zod";
 import { AppError, call, callOne } from "@/lib/db";
 import { createSession, destroySession, hashPassword, rateLimit, rememberDevice, safeNext, verifyPassword } from "@/lib/auth";
-import { sendNewDeviceMail, sendWelcomeMail } from "@/lib/welcome-mail";
+import { sendAdminDocumentAlert, sendNewDeviceMail, sendWelcomeMail } from "@/lib/welcome-mail";
 import { isBot } from "@/lib/bot";
 import { checkPassword } from "@/lib/password";
+import { LEGAL } from "@/lib/legal";
+import { verifyDocumentForm, type VerifiedDoc } from "@/lib/doc-verify";
 
 
 export type FormState = { error?: string; values?: Record<string, string> } | undefined;
@@ -79,6 +81,25 @@ export async function register(_: FormState, form: FormData): Promise<FormState>
   const pw = checkPassword(d.password, { email: d.email, firstName: d.firstName, lastName: d.lastName, phone: d.phone });
   if (pw.error) return { error: pw.error, values };
 
+  // İşletme hesabı: doğrulama belgesi zorunlu (kimlik, ruhsat, vergi levhası…). Dosya hesap açılmadan önce kontrol edilir.
+  // Belge numarası türüne göre kontrol edilir, kimlik nüfustan sorgulanır (ad/soyad/doğum yılı formdakiyle),
+  // aynı belge başka hesapta kullanılıyorsa hesap hiç açılmaz.
+  let doc: VerifiedDoc | undefined;
+  let discardDoc = async () => {};
+  if (isBusiness) {
+    const v = await verifyDocumentForm(form, { firstName: d.firstName, lastName: d.lastName, birthYear: d.birthYear ? Number(d.birthYear) : null });
+    if (!v.doc) return { error: `Belge: ${v.error}`, values };
+    doc = v.doc;
+    discardDoc = v.discard;
+    try {
+      await call("api.OwnerDocument_CheckUnique", { Kind: doc.Kind, NumberHash: doc.NumberHash, FileHash: doc.FileHash });
+    } catch (e) {
+      await discardDoc();
+      if (e instanceof AppError) return { error: `Belge: ${e.message}`, values };
+      throw e;
+    }
+  }
+
   let id: string;
   try {
     const row = await callOne<{ Id: string }>("api.Auth_Register", {
@@ -88,13 +109,21 @@ export async function register(_: FormState, form: FormData): Promise<FormState>
       LastName: d.lastName,
       BirthYear: d.birthYear ? Number(d.birthYear) : null,
       Phone: d.phone,
-      KvkkAccepted: true,
+      KvkkAccepted: true, KvkkVersion: LEGAL.version,
       IsBusiness: isBusiness,
     });
     id = row!.Id;
   } catch (e) {
+    await discardDoc();
     if (e instanceof AppError) return { error: e.message, values };
     throw e;
+  }
+  if (doc) {
+    // Olmazsa (ör. aynı anda başka hesap aynı belgeyi yükledi) hesap belgesiz kalır; doğrulama sayfası yeniden belge ister
+    const added = await call("api.OwnerDocument_Add", { ActorId: id, ShopId: null, ClaimId: null, ...doc })
+      .then(() => true, async (e) => { console.error("Kayıt belgesi:", e); await discardDoc(); return false; });
+    const k = doc.Kind, auto = doc.NviResult === "dogru";
+    if (added) after(() => sendAdminDocumentAlert(`${d.firstName} ${d.lastName}`, k, auto).catch((e) => console.error("Admin belge e-postası:", e)));
   }
   await createSession(id);
   await rememberDevice(id);

@@ -14,6 +14,8 @@ export type ShopCard = {
   street: string; buildingNo: string; phone: string | null; lat: number; lng: number; cover: string | null;
   distanceKm: number | null; isOpen: boolean; opensAt: string | null; closesAt: string | null;
   isCertified: boolean; rating: number | null; reviewCount: number; todayAppointments: number; isClaimed: boolean;
+  /** Bermatik ile eklendi (sahibi açtı, Bermatik ekibi ekledi ya da sahibi katıldı) */
+  addedViaBermatik?: boolean;
 };
 
 export type ShopDetail = ShopCard & {
@@ -24,7 +26,7 @@ export type ShopDetail = ShopCard & {
 
 export type Service = { id: string; category: string; categorySlug: string; name: string; description: string | null; price: number; minutes: number };
 export type Staff = { id: string; name: string; title: string | null; photo: string | null; phone: string | null; isCertified: boolean };
-export type Review = { id: string; rating: number; comment: string | null; createdAt: string; customer: string; staff: string | null };
+export type Review = { id: string; rating: number; comment: string | null; createdAt: string; customer: string; staff: string | null; reply?: string | null };
 export type Hours = { weekday: number; isClosed: boolean; opensAt: string | null; closesAt: string | null };
 
 export type ShopPage = {

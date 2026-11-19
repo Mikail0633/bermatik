@@ -50,6 +50,11 @@ module.exports = {
       ['expo-splash-screen', { backgroundColor: BLACK, image: './assets/splash-icon.png', imageWidth: 160 }],
       ['expo-location', { locationWhenInUsePermission: 'Yakınınızdaki berber ve kuaförleri gösterebilmek için konumunuz kullanılır.' }],
       ['expo-notifications', { color: GOLD }],
+      ['expo-image-picker', {
+        photosPermission: 'İşletme hesabı doğrulaması için belgenizin fotoğrafını seçebilmeniz için galerinize erişilir.',
+        cameraPermission: 'İşletme hesabı doğrulaması için belgenizin fotoğrafını çekebilmeniz için kameranız kullanılır.',
+        microphonePermission: false,
+      }],
     ],
     experiments: { typedRoutes: false },
     extra: { apiUrl: siteUrl() },

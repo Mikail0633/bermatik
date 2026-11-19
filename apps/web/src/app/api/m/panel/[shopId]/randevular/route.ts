@@ -1,10 +1,10 @@
 import { call } from "@/lib/db";
-import { GUID, authed, body, fail, ok, str } from "@/lib/mobile";
+import { GUID, businessAuthed, body, fail, ok, str } from "@/lib/mobile";
 import { DATE, TIME, panelAppt, panelShop, todayTR, type PanelAppt } from "@/lib/mobile-panel";
 import type { Service, Staff } from "@/lib/types";
 
 // "Randevular" sekmesi: seçilen günün tüm randevuları (?gun=2026-11-02) + telefon randevusu formu için hizmet ve personel
-export const GET = authed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const GET = businessAuthed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   await panelShop(user, shopId);
@@ -24,7 +24,7 @@ export const GET = authed(async (user, req: Request, { params }: { params: Promi
 });
 
 // Telefonla gelen randevu: { customerName, customerPhone, serviceIds, staffId, date, time, note } — doğrudan onaylı kaydedilir
-export const POST = authed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const POST = businessAuthed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   const b = await body(req);

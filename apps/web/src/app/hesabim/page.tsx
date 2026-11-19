@@ -10,7 +10,7 @@ import { ConsentPrefs, DeleteAccountForm, NotifyPrefs, PasswordForm, ProfileForm
 export const metadata: Metadata = { title: "Hesabım", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-type Prefs = { PushOptIn: boolean; SlotAlertsOptIn: boolean; HasDevice: boolean };
+type Prefs = { PushOptIn: boolean; SlotAlertsOptIn: boolean; HasDevice: boolean; RevisitRemindersOptIn: boolean };
 
 export default async function Page() {
   const user = await requireUser("/hesabim");
@@ -48,7 +48,7 @@ export default async function Page() {
 
         <section className={box}>
           <h2 className="mb-3 text-lg font-bold">Bildirimler</h2>
-          <NotifyPrefs slotAlerts={Boolean(prefs?.SlotAlertsOptIn)} push={Boolean(prefs?.PushOptIn)} vapidKey={vapidPublicKey()} />
+          <NotifyPrefs slotAlerts={Boolean(prefs?.SlotAlertsOptIn)} push={Boolean(prefs?.PushOptIn)} revisit={prefs ? Boolean(prefs.RevisitRemindersOptIn) : true} vapidKey={vapidPublicKey()} />
         </section>
 
         {showConsent && (

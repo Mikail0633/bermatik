@@ -205,7 +205,8 @@ BEGIN
   WHERE TokenHash = @TokenHash AND LastSeenAt < DATEADD(minute, -5, SYSUTCDATETIME());
 
   SELECT u.Id, u.Email, u.Role, u.FirstName, u.LastName, u.BirthYear, u.Phone, u.TotpEnabled, s.ExpiresAt,
-         CAST(CASE WHEN u.EmailVerifiedAt IS NULL THEN 0 ELSE 1 END AS bit) AS EmailVerified
+         CAST(CASE WHEN u.EmailVerifiedAt IS NULL THEN 0 ELSE 1 END AS bit) AS EmailVerified,
+         data.fn_IsBusinessVerified(u.Id) AS BusinessVerified
   FROM data.Sessions s
   JOIN data.Users u ON u.Id = s.UserId AND u.IsActive = 1
   WHERE s.TokenHash = @TokenHash;

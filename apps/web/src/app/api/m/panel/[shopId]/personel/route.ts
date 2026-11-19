@@ -1,5 +1,5 @@
 import { call } from "@/lib/db";
-import { GUID, authed, body, fail, ok, str } from "@/lib/mobile";
+import { GUID, businessAuthed, body, fail, ok, str } from "@/lib/mobile";
 import { panelShop } from "@/lib/mobile-panel";
 
 type Row = {
@@ -12,7 +12,7 @@ type DayOff = { id: string; weekday: number | null; startDate: string | null; en
 const parse = <T,>(s: string | null): T[] => { try { return s ? (JSON.parse(s) as T[]) : []; } catch { return []; } };
 
 // "Personel" sekmesi (yalnızca sahip / admin): personel, molası ve izinleri
-export const GET = authed(async (user, _req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const GET = businessAuthed(async (user, _req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   const { canManage } = await panelShop(user, shopId);
@@ -32,7 +32,7 @@ export const GET = authed(async (user, _req: Request, { params }: { params: Prom
 });
 
 // Personel ekle / düzenle: { staffId?, name, title?, phone?, showPhone, isActive }
-export const POST = authed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
+export const POST = businessAuthed(async (user, req: Request, { params }: { params: Promise<{ shopId: string }> }) => {
   const { shopId } = await params;
   if (!GUID.test(shopId)) return fail("Dükkân bulunamadı.", 404);
   const b = await body(req);

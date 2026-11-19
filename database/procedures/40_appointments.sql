@@ -100,8 +100,13 @@ BEGIN
     THROW 50404, N'Personel bulunamadı.', 1;
 
   DECLARE @NowLocal datetime2(0) = data.fn_IstanbulNow();
-  IF @StartsAtLocal < DATEADD(minute, 10, @NowLocal) OR @StartsAtLocal > DATEADD(day, 60, @NowLocal)
-    THROW 50400, N'Bu tarihe randevu alınamaz.', 1;
+  -- Müşteri en erken 10 dk sonrasına alır; personel/sahip saati dakikasıyla serbest yazar (13:05 gibi), yalnızca geçmiş saat olmaz
+  IF @StartsAtLocal < CASE WHEN data.fn_CanWorkShop(@ActorId, @ShopId) = 1
+                           THEN DATEADD(minute, DATEDIFF(minute, '20000101', @NowLocal), '20000101')
+                           ELSE DATEADD(minute, 10, @NowLocal) END
+    THROW 50400, N'Geçmiş bir saate randevu yazılamaz.', 1;
+  IF @StartsAtLocal > DATEADD(day, 60, @NowLocal)
+    THROW 50400, N'En fazla 60 gün sonrasına randevu alınabilir.', 1;
   IF ISJSON(@ServiceIdsJson) = 0 THROW 50400, N'En az bir hizmet seçmelisiniz.', 1;
 
   DECLARE @Ids TABLE (Id uniqueidentifier PRIMARY KEY);
@@ -163,10 +168,15 @@ BEGIN
     DECLARE @Lock nvarchar(100) = N'staff:' + CONVERT(nvarchar(36), @StaffId);
     EXEC sp_getapplock @Resource = @Lock, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000;
 
-    IF EXISTS (SELECT 1 FROM data.Appointments
-               WHERE StaffId = @StaffId AND Status IN ('pending', 'accepted')
-                 AND StartsAt < @EndsAt AND EndsAt > @StartsAt)
-      THROW 50409, N'Bu saat dolu, lütfen başka bir saat seçin.', 1;
+    DECLARE @Clash nvarchar(200) = (
+      SELECT TOP 1 N'Bu personelin ' + FORMAT(data.fn_ToIstanbul(StartsAt), 'HH:mm') + N'–' + FORMAT(data.fn_ToIstanbul(EndsAt), 'HH:mm')
+                   + N' arası randevusu var. Başka bir saat yazın.'
+      FROM data.Appointments
+      WHERE StaffId = @StaffId AND Status IN ('pending', 'accepted')
+        AND StartsAt < @EndsAt AND EndsAt > @StartsAt
+      ORDER BY StartsAt);
+    IF @Clash IS NOT NULL AND @IsMember = 0 THROW 50409, N'Bu saat dolu, lütfen başka bir saat seçin.', 1;
+    IF @Clash IS NOT NULL THROW 50409, @Clash, 1;
 
     INSERT INTO data.Appointments (ShopId, StaffId, CustomerId, CustomerName, CustomerPhone, Source, StartsAt, EndsAt,
                                    Status, TotalPrice, Note, RespondedAt)

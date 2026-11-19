@@ -10,7 +10,7 @@ import { useSegment } from '@/lib/segment';
 import type { Hours, ShopPage } from '@/lib/types';
 import { Crumbs } from '@/components/Header';
 import { OsmMap } from '@/components/OsmMap';
-import { OpenBadge, Rating } from '@/components/ShopRow';
+import { BermatikBadge, OpenBadge, Rating } from '@/components/ShopRow';
 import { Button, Loading, Notice, Row, Screen, T, Title } from '@/components/ui';
 
 const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
@@ -110,6 +110,7 @@ export default function Dukkan() {
         {crumbs}
         <Title>{s.name}</Title>
         <Row gap={4} style={{ alignItems: 'flex-start' }}><Ionicons name="location-outline" size={16} color={th.muted} style={{ marginTop: 2 }} /><T muted style={{ flex: 1 }}>{address}</T></Row>
+        {s.addedViaBermatik ? <BermatikBadge /> : null}
         {favButton}
         <View style={{ borderRadius: 16, borderWidth: 1, borderColor: th.line, backgroundColor: th.surface2, padding: 16, gap: 4 }}>
           <T size={14} bold>Bu {t.shop} henüz Bermatik'e katılmadı.</T>
@@ -171,6 +172,7 @@ export default function Dukkan() {
           <OpenBadge shop={s} />
           <Rating value={s.rating} count={s.reviewCount} />
           {s.isCertified && <T size={14} muted>Belgeli usta</T>}
+          {s.addedViaBermatik ? <BermatikBadge /> : null}
         </Row>
         {s.closedReason ? (
           <View style={{ borderRadius: 10, backgroundColor: th.surface2, paddingHorizontal: 12, paddingVertical: 8 }}>
@@ -274,6 +276,12 @@ export default function Dukkan() {
               </Row>
               {r.comment ? <T muted>{r.comment}</T> : null}
               <T size={12} muted>{longDate(r.createdAt)}{r.staff ? ` · ${r.staff}` : ''}</T>
+              {r.reply ? (
+                <View style={{ marginTop: 4, borderLeftWidth: 4, borderLeftColor: th.primary, backgroundColor: th.surface2, borderRadius: 10, padding: 10, gap: 2 }}>
+                  <T size={12} bold muted>İşletmenin cevabı</T>
+                  <T size={14}>{r.reply}</T>
+                </View>
+              ) : null}
             </Box>
           ))}
         </Section>

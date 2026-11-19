@@ -34,7 +34,7 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM data.PlatformSettings WHERE ReviewsEnabled = 1) OR data.fn_ShopIsPublic(@ShopId) = 0 RETURN;
   SELECT TOP (CASE WHEN @Top > 100 THEN 100 ELSE @Top END)
          r.Id, r.Rating, r.Comment, r.CreatedAt, u.FirstName + N' ' + LEFT(u.LastName, 1) + N'.' AS CustomerName,
-         st.DisplayName AS StaffName
+         st.DisplayName AS StaffName, r.ReplyText, data.fn_ToIstanbul(r.ReplyAt) AS ReplyAtLocal
   FROM data.Reviews r
   JOIN data.Users u ON u.Id = r.CustomerId
   LEFT JOIN data.Staff st ON st.Id = r.StaffId

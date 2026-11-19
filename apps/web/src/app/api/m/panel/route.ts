@@ -1,11 +1,11 @@
 import { call, callOne } from "@/lib/db";
-import { authed, body, fail, ok, str } from "@/lib/mobile";
+import { businessAuthed, body, fail, ok, str } from "@/lib/mobile";
 
 type MyShop = { Id: string; Code: string; Segment: string; Name: string; Status: string; IsOwner: boolean };
 type AnyShop = { Id: string; Code: string; Name: string; Status: string; District: string; OwnerName: string | null; IsClaimed: boolean; Segment: string };
 
 // İşletme paneli giriş ekranı: dükkânlarım (admin: Bermatik'teki tüm dükkânlar + arama ?q=)
-export const GET = authed(async (user, req: Request) => {
+export const GET = businessAuthed(async (user, req: Request) => {
   if (user.Role === "admin") {
     const q = (new URL(req.url).searchParams.get("q") ?? "").trim().slice(0, 100);
     const rows = await call<AnyShop>("api.Admin_Shop_List", { ActorId: user.Id, Search: q || null, Claimed: q ? null : true, Top: 100 });
@@ -22,7 +22,7 @@ export const GET = authed(async (user, req: Request) => {
 });
 
 // Personel davet kodu ile dükkâna katıl: { code } → { shopId }
-export const POST = authed(async (user, req: Request) => {
+export const POST = businessAuthed(async (user, req: Request) => {
   const code = str((await body(req)).code, 20).toUpperCase();
   if (!code) return fail("Davet kodunu yazın.");
   const r = await callOne<{ ShopId: string }>("api.Staff_ClaimInvite", { ActorId: user.Id, Code: code });

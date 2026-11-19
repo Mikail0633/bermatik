@@ -3,19 +3,26 @@ import { call } from "./db";
 import { pushConfigured, sendPush } from "./push";
 
 // Sitenin arka planında dakikada bir çalışır (src/instrumentation.ts başlatır):
-//   1) Zamanı gelen randevu hatırlatmalarını kuyruğa ekler (1 gün ve 2 saat kala)
+//   1) Zamanı gelen randevu hatırlatmalarını kuyruğa ekler (1 gün ve 2 saat kala) + "zamanın geldi" hatırlatması
 //   2) Kuyruktaki bildirimleri kişinin kayıtlı cihazlarına gönderir
 // Bildirimler her durumda sitedeki zil listesine de düşer; burası yalnızca telefona/tarayıcıya gönderimdir.
 
 type Row = { NotificationId: number; Title: string; Body: string; Url: string | null; Endpoint: string; P256dh: string | null; AuthKey: string | null; Platform: string };
 
 let running = false;
+let lastRevisit = 0;
+const REVISIT_EVERY_MS = 10 * 60_000;
 
 async function tick() {
   if (running) return; // önceki tur bitmeden yenisi başlamasın
   running = true;
   try {
     await call("api.Worker_EnqueueReminders");
+    // "Traş / bakım zamanın geldi" hatırlatması: 10 dakikada bir bakılır (yalnızca gündüz gönderilir, her ziyarette en fazla 1 kez)
+    if (Date.now() - lastRevisit >= REVISIT_EVERY_MS) {
+      lastRevisit = Date.now();
+      await call("api.Worker_EnqueueRevisitReminders");
+    }
     if (!pushConfigured()) return;
     for (let round = 0; round < 20; round++) {
       const rows = await call<Row>("api.Worker_NextPush", { Top: 50 });

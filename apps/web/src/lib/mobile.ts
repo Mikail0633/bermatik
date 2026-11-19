@@ -84,6 +84,14 @@ export function authed<A extends unknown[]>(fn: (user: SessionUser, ...args: A) 
   });
 }
 
+/** İşletme paneli uç noktaları: giriş + işletme hesabı doğrulanmış olmalı (belge onayı / nüfusta doğru kimlik) */
+export function businessAuthed<A extends unknown[]>(fn: (user: SessionUser, ...args: A) => Promise<Response>) {
+  return authed(async (user: SessionUser, ...args: A) => {
+    if (!user.BusinessVerified) return fail("İşletme hesabınız henüz doğrulanmadı. Doğrulama belgenizi sitede İşletme panelinden yükleyin.", 403);
+    return fn(user, ...args);
+  });
+}
+
 export async function body<T = Record<string, unknown>>(req: Request): Promise<Partial<T>> {
   try {
     const b = await req.json();

@@ -215,3 +215,13 @@ export async function sendShopCampaign(shopId: string, templateId: number, onlyD
     throw e;
   }
 }
+
+// ---------------------------------------------------------------------
+// Yoruma cevap (sahip: tüm yorumlar; personel: kendisi hakkındakiler). Boş metin → cevap silinir.
+// ---------------------------------------------------------------------
+export async function replyReview(reviewId: string, shopId: string, _: PanelState, form: FormData): Promise<PanelState> {
+  const user = await requireUser("/panel");
+  const text = str(form.get("text")).slice(0, 1000);
+  return run(() => call("api.Review_Reply", { ActorId: user.Id, ReviewId: reviewId, Text: text || null }),
+    text ? "Cevabınız yayınlandı." : "Cevap kaldırıldı.", `/panel/${shopId}/yorumlar`);
+}

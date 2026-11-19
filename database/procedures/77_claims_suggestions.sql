@@ -16,6 +16,8 @@ BEGIN
     THROW 50403, N'Dükkân sahiplenmek için işletme hesabı gerekir.', 1;
   IF EXISTS (SELECT 1 FROM data.Users WHERE Id = @ActorId AND EmailVerifiedAt IS NULL)
     THROW 50409, N'Önce e-posta adresinizi doğrulayın.', 1;
+  IF EXISTS (SELECT 1 FROM data.Users WHERE Id = @ActorId AND BusinessVerifiedAt IS NULL AND Role <> 'admin')
+    THROW 50409, N'İşletme hesabınız henüz doğrulanmadı. Önce doğrulama belgenizi yükleyin.', 1;
   IF EXISTS (SELECT 1 FROM data.ShopClaims WHERE ShopId = @ShopId AND UserId = @ActorId AND Status = 'open')
     THROW 50409, N'Bu dükkân için talebiniz zaten inceleniyor.', 1;
   IF (SELECT COUNT(*) FROM data.ShopClaims WHERE UserId = @ActorId AND CreatedAt > DATEADD(day, -1, SYSUTCDATETIME())) >= 3
@@ -61,7 +63,7 @@ BEGIN
     IF @Approve = 1
     BEGIN
       IF EXISTS (SELECT 1 FROM data.Shops WHERE Id = @ShopId AND IsClaimed = 1 AND data.fn_IsAdmin(OwnerId) = 0) THROW 50409, N'Dükkân zaten sahiplenilmiş.', 1;
-      UPDATE data.Shops SET OwnerId = @UserId, IsClaimed = 1, NeedsReview = 0, UpdatedBy = @ActorId, UpdatedAt = SYSUTCDATETIME() WHERE Id = @ShopId;
+      UPDATE data.Shops SET OwnerId = @UserId, IsClaimed = 1, AddedViaBermatik = 1, NeedsReview = 0, UpdatedBy = @ActorId, UpdatedAt = SYSUTCDATETIME() WHERE Id = @ShopId;
       UPDATE data.Users SET Role = 'shop_owner', UpdatedAt = SYSUTCDATETIME() WHERE Id = @UserId AND Role IN ('customer', 'staff');
       UPDATE data.ShopClaims SET Status = 'rejected', ReviewNote = N'Dükkân başka bir talep sahibine verildi.', ReviewedBy = @ActorId, ReviewedAt = SYSUTCDATETIME()
       WHERE ShopId = @ShopId AND Status = 'open';

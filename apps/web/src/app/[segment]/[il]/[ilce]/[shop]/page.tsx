@@ -13,7 +13,7 @@ import {
 import { SiteShell } from "@/components/SiteShell";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ReportButton } from "@/components/ReportButton";
-import { OpenBadge, Rating } from "@/components/ShopCard";
+import { BermatikBadge, OpenBadge, Rating } from "@/components/ShopCard";
 import { LazyMap } from "@/components/LazyMap";
 
 export const revalidate = 60;
@@ -130,6 +130,7 @@ export default async function Page({ params }: { params: Params }) {
               <OpenBadge shop={shop} />
               <Rating value={shop.AvgRating} count={shop.ReviewCount} />
               {shop.IsCertified && <span className="text-sm text-muted">Belgeli usta</span>}
+              {shop.AddedViaBermatik && <BermatikBadge />}
             </div>
             {shop.ClosedReason && (
               <p className="mt-2 rounded-lg bg-closed/10 px-3 py-2 text-sm font-medium text-closed">Bugün kapalı: {shop.ClosedReason}</p>
@@ -274,6 +275,12 @@ export default async function Page({ params }: { params: Params }) {
                           {new Date(r.CreatedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
                           {r.StaffName ? ` · ${r.StaffName}` : ""}
                         </p>
+                        {r.ReplyText && (
+                          <div className="mt-2 rounded-xl border-l-4 border-primary bg-surface-2 px-3 py-2 text-sm">
+                            <p className="text-xs font-semibold text-muted">İşletmenin cevabı</p>
+                            <p className="mt-0.5 whitespace-pre-line">{r.ReplyText}</p>
+                          </div>
+                        )}
                         <div className="mt-1"><ReportButton targetType="review" targetId={r.Id} loggedIn={!!user} /></div>
                       </li>
                     ))}
@@ -367,6 +374,7 @@ function NotJoinedShop({ shop, canClaim, isFav, loggedIn, services, hours }: {
           <FavoriteButton shopId={shop.Id} initial={isFav} />
         </div>
         <p className="mt-1 flex items-center gap-1 text-muted"><MapPin className="h-4 w-4" aria-hidden /> {address}</p>
+        {shop.AddedViaBermatik && <p className="mt-2"><BermatikBadge /></p>}
 
         <div className="mt-5 rounded-2xl border border-line bg-surface-2 p-4 text-sm">
           <p className="font-semibold">Bu {seg.shop} henüz Bermatik&apos;e katılmadı.</p>

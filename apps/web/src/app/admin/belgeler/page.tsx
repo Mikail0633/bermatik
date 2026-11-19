@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { call } from "@/lib/db";
 import { ActionButton } from "@/components/ActionButton";
-import { reviewCertificate } from "../actions";
+import { reviewCertificate, reviewOwnerDocument } from "../actions";
 
 export const metadata = { title: "Belgeler" };
 export const dynamic = "force-dynamic";
@@ -13,6 +13,15 @@ type Cert = {
 const TYPES: Record<string, string> = {
   ciraklik: "Çıraklık belgesi", kalfalik: "Kalfalık belgesi", ustalik: "Ustalık belgesi", usta_ogreticilik: "Usta öğreticilik belgesi", diger: "Diğer belge",
 };
+type AccDoc = {
+  Id: string; Kind: string; Status: string; ReviewNote: string | null; CreatedAtLocal: Date;
+  UserName: string; Email: string; Phone: string | null; Role: string; Shops: string | null;
+  NumberMasked: string | null; NviResult: string | null; BirthYear: number | null; PanelOpen: boolean;
+};
+const NVI: Record<string, string> = { dogru: "✓ Nüfusta doğru", yanlis: "✗ Nüfusta yanlış", hata: "⚠ Nüfus servisine ulaşılamadı" };
+const KINDS: Record<string, string> = {
+  kimlik: "Kimlik (ön yüz)", ruhsat: "İşyeri açma ruhsatı", vergi_levhasi: "Vergi levhası", esnaf_kaydi: "Esnaf odası kaydı", diger: "Diğer belge",
+};
 const when = (d: Date) => new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC", dateStyle: "medium" }).format(new Date(d));
 
 // Ustalık belgesi onayı → dükkân sayfasında "Belgeli usta" rozeti
@@ -20,14 +29,46 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   const admin = await requireAdmin();
   const all = (await searchParams).durum === "hepsi";
   const rows = await call<Cert>("api.Admin_Certificate_List", { ActorId: admin.Id, Status: all ? null : "pending" });
+  const accDocs = await call<AccDoc>("api.Admin_AccountDocument_List", { ActorId: admin.Id, Status: all ? null : "pending" });
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="text-2xl font-extrabold">Belge onayı</h1>
-      <p className="text-sm text-muted">Onaylanan belge, sahibinin dükkân sayfasında &quot;Belgeli usta&quot; rozeti olarak görünür. Belgedeki ad ile hesap adının aynı olduğunu kontrol edin.</p>
+      <p className="text-sm text-muted">Ustalık belgesi onaylanınca, sahibinin dükkân sayfasında &quot;Belgeli usta&quot; rozeti olarak görünür. Belgedeki ad ile hesap adının aynı olduğunu kontrol edin.</p>
       <div className="mt-3 flex gap-2 text-sm">
         <a href="?" className={`rounded-lg px-3 py-1.5 font-semibold ${all ? "border border-line" : "bg-primary text-primary-ink"}`}>Bekleyenler</a>
         <a href="?durum=hepsi" className={`rounded-lg px-3 py-1.5 font-semibold ${all ? "bg-primary text-primary-ink" : "border border-line"}`}>Tümü</a>
       </div>
+      <h2 className="mt-6 text-lg font-bold">İşletme hesabı belgeleri</h2>
+      <p className="text-sm text-muted">İşletme hesabı açılırken yüklenen belge. Belgedeki ad ile hesap adının aynı olduğunu kontrol edin. &quot;Uygun&quot; deyince panel açılır; &quot;Uygun değil&quot; deyince (başka geçerli belgesi yoksa) panel kapanır. Kimlik nüfusta doğruysa panel zaten açılmıştır.</p>
+      {accDocs.length === 0 ? <p className="mt-2 text-muted">{all ? "Hiç belge yüklenmemiş." : "Bekleyen belge yok."}</p> : (
+        <ul className="mt-3 space-y-3">
+          {accDocs.map((d) => (
+            <li key={d.Id} className="rounded-2xl border border-line bg-surface p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-bold">{KINDS[d.Kind] ?? d.Kind} · {d.UserName}{d.BirthYear ? <span className="font-normal text-muted"> ({d.BirthYear})</span> : null}</p>
+                  <p className="text-sm">
+                    No: <b>{d.NumberMasked ?? "—"}</b>
+                    {d.NviResult && <span className={`ml-2 font-semibold ${d.NviResult === "dogru" ? "text-open" : "text-closed"}`}>{NVI[d.NviResult]}</span>}
+                    <span className={`ml-2 rounded px-1.5 py-0.5 text-xs font-bold ${d.PanelOpen ? "bg-open/15 text-open" : "bg-surface-2 text-muted"}`}>{d.PanelOpen ? "Panel açık" : "Panel kapalı"}</span>
+                  </p>
+                  <p className="text-sm text-muted">{d.Email}{d.Phone ? ` · ${d.Phone}` : ""} · {when(d.CreatedAtLocal)}</p>
+                  <p className="text-sm"><a href={`/api/belge/${d.Id}`} target="_blank" className="font-semibold underline">Belgeyi aç</a></p>
+                  {d.Shops && <p className="text-sm text-muted">Dükkânları: {d.Shops}</p>}
+                  {d.Status !== "pending" && <p className="mt-1 text-xs">{d.Status === "approved" ? "✓ Uygun" : "✗ Uygun değil"}{d.ReviewNote ? `: ${d.ReviewNote}` : ""}</p>}
+                </div>
+                {d.Status === "pending" && (
+                  <div className="flex gap-2">
+                    <ActionButton variant="success" action={reviewOwnerDocument.bind(null, d.Id, "approved", undefined)}>Uygun</ActionButton>
+                    <ActionButton variant="danger" confirm="Belge uygun değil olarak işaretlensin mi?" action={reviewOwnerDocument.bind(null, d.Id, "rejected", "Belge okunamadı veya hesap sahibiyle eşleşmiyor")}>Uygun değil</ActionButton>
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <h2 className="mt-8 text-lg font-bold">Ustalık / kalfalık belgeleri</h2>
       {rows.length === 0 ? <p className="mt-6 text-muted">{all ? "Hiç belge yüklenmemiş." : "Bekleyen belge yok."}</p> : (
         <ul className="mt-4 space-y-3">
           {rows.map((c) => (

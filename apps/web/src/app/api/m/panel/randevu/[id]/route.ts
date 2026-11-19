@@ -1,5 +1,5 @@
 import { call } from "@/lib/db";
-import { GUID, authed, body, fail, ok } from "@/lib/mobile";
+import { GUID, businessAuthed, body, fail, ok } from "@/lib/mobile";
 
 const ALLOWED = new Set(["accepted", "rejected", "completed", "no_show", "cancelled"]);
 const MSG: Record<string, string> = {
@@ -8,7 +8,7 @@ const MSG: Record<string, string> = {
 };
 
 // Randevu durumu: { status } — kimin neyi yapabileceği veritabanında denetlenir (sahip / ilgili personel / admin)
-export const POST = authed(async (user, req: Request, { params }: { params: Promise<{ id: string }> }) => {
+export const POST = businessAuthed(async (user, req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!GUID.test(id)) return fail("Randevu bulunamadı.", 404);
   const status = String((await body(req)).status ?? "");

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, Scissors, Star, Store } from "lucide-react";
+import { BadgeCheck, Clock, Scissors, Star, Store } from "lucide-react";
 import { call } from "@/lib/db";
 import { getUser } from "@/lib/auth";
 import { SEGMENTS, type Province, type Segment, type ShopCard as Shop } from "@/lib/types";
@@ -14,10 +14,12 @@ import { WelcomeChoice } from "./WelcomeChoice";
 export async function HomePage({ segment }: { segment: Segment }) {
   const seg = SEGMENTS[segment];
   const user = await getUser();
-  const [provinces, categories, shops] = await Promise.all([
+  const [provinces, categories, shops, joined] = await Promise.all([
     call<Province>("api.Lookup_Provinces"),
     call<{ Slug: string; Name: string }>("api.ServiceCategory_List", { Segment: segment }),
     call<Shop>("api.Shop_Search", { Segment: segment, Limit: 100, ProvinceId: 6 }),
+    // "Bermatik ile eklenenler": Bermatik ekibinin / dükkân sahiplerinin eklediği dükkânlar (tüm Türkiye; katılanlar, açıklar ve yüksek puanlılar önce)
+    call<Shop>("api.Shop_Search", { Segment: segment, Limit: 6, OnlyBermatik: true }),
   ]);
 
   // Vitrin 1: şu an açık ve bugün randevusu az olanlar
@@ -61,6 +63,37 @@ export async function HomePage({ segment }: { segment: Segment }) {
           </div>
         </div>
       </section>
+
+      {/* Bermatik ile eklenenler: Bermatik ekibinin ve dükkân sahiplerinin eklediği dükkânlar (Shops.AddedViaBermatik). Boşsa müşteriye gösterilmez. */}
+      {(joined.length > 0 || user?.Role !== "customer") && (
+        <section className="mx-auto max-w-6xl px-4 pt-10 pb-2">
+          <div className="rounded-3xl border-2 border-accent/60 bg-surface-2 p-4 sm:p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/15">
+                <BadgeCheck className="h-6 w-6 text-accent" aria-hidden />
+              </span>
+              <div>
+                <h2 className="text-2xl font-extrabold">Bermatik ile eklenenler</h2>
+                <p className="text-sm text-muted">
+                  Bermatik ekibinin ve dükkân sahiplerinin eklediği {seg.shops}. Katılanlarda online randevu al, bugünkü sırayı canlı gör.
+                </p>
+              </div>
+            </div>
+            {joined.length > 0 ? (
+              <ShopList shops={joined} />
+            ) : (
+              <div className="flex flex-col items-start gap-3 rounded-2xl border border-dashed border-line bg-surface p-5 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-muted">
+                  Henüz Bermatik ile eklenen {segment === "erkek" ? "berber" : "kuaför"} yok. Dükkânınızı ekleyin, burada en başta görünün.
+                </p>
+                <Link href="/isletme" className="shrink-0 rounded-xl bg-primary px-5 py-2.5 font-semibold text-primary-ink hover:opacity-90">
+                  Dükkânımı ekle
+                </Link>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Nasıl çalışır: tıklanabilir 3 kutu */}
       <HowItWorks segment={segment} />

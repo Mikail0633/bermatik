@@ -7,6 +7,9 @@ import { ViewSwitch } from "./ViewSwitch";
 const TABS = [
   { slug: "", label: "Bugün", owner: false },
   { slug: "randevular", label: "Randevular", owner: false },
+  { slug: "rapor", label: "Rapor", owner: false },
+  { slug: "musteriler", label: "Müşteriler", owner: false },
+  { slug: "yorumlar", label: "Yorumlar", owner: false },
   { slug: "bilgiler", label: "Bilgiler ve saatler", owner: true },
   { slug: "hizmetler", label: "Hizmetler ve fiyatlar", owner: true },
   { slug: "personel", label: "Personel", owner: true },
@@ -39,7 +42,7 @@ export default async function ShopPanelLayout({ children, params }: { children: 
         </div>
       </div>
       {isAdmin && view === "personel" && (
-        <p className="mt-3 rounded-xl bg-surface-2 px-3 py-2 text-sm">👁 <b>Personel görünümü</b>: personel yalnızca &quot;Bugün&quot; ve &quot;Randevular&quot; sekmelerini görür; randevularda yalnızca kendisine ait olanları görür, fiyat/personel/saat ayarlarını değiştiremez.</p>
+        <p className="mt-3 rounded-xl bg-surface-2 px-3 py-2 text-sm">👁 <b>Personel görünümü</b>: personel Bugün, Randevular, Rapor, Müşteriler, Yorumlar, Fotoğraflar ve Mağaza sekmelerini görür; randevu, rapor, müşteri ve yorumlarda yalnızca kendisine ait olanları görür, fiyat/personel/saat ayarlarını değiştiremez.</p>
       )}
       {shop.Status === "pending" && (
         <p className="mt-3 rounded-xl bg-accent/15 px-3 py-2 text-sm">⏳ Dükkânınız <b>Bermatik ekibinin onayını bekliyor</b>. Bu sırada hizmetlerinizi, fiyatlarınızı, personelinizi ve saatlerinizi girebilirsiniz; onaylanınca sitede yayınlanır.</p>

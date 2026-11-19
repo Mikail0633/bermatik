@@ -55,9 +55,9 @@ export async function changePassword(_: HesapState, form: FormData): Promise<Hes
   return { ok: "Şifreniz değişti. Diğer cihazlardaki oturumlarınız kapatıldı." };
 }
 
-export async function setNotifyPrefs(slotAlerts: boolean, push: boolean) {
+export async function setNotifyPrefs(slotAlerts: boolean, push: boolean, revisit: boolean) {
   const user = await requireUser("/hesabim");
-  return run(() => call("api.Notify_SetPreferences", { ActorId: user.Id, PushOptIn: push, SlotAlertsOptIn: slotAlerts }), "Bildirim ayarlarınız kaydedildi.", "/hesabim");
+  return run(() => call("api.Notify_SetPreferences", { ActorId: user.Id, PushOptIn: push, SlotAlertsOptIn: slotAlerts, RevisitRemindersOptIn: revisit }), "Bildirim ayarlarınız kaydedildi.", "/hesabim");
 }
 
 // Ticari ileti (kampanya) izinleri — İYS'ye aktarılmak üzere kaydedilir

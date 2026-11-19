@@ -43,6 +43,8 @@ export type ShopCard = {
   TodayAppointments: number;
   /** false = henüz Bermatik'e katılmadı (OpenStreetMap veya admin ekledi): online randevu yok */
   IsClaimed: boolean;
+  /** true = Bermatik ile eklendi (sahibi açtı, Bermatik ekibi ekledi ya da sahibi katıldı); false = yalnızca internetten toplandı */
+  AddedViaBermatik: boolean;
 };
 
 export type ShopDetail = ShopCard & {
@@ -74,7 +76,11 @@ export type Service = {
 };
 
 export type Staff = { Id: string; DisplayName: string; Title: string | null; PhotoPath: string | null; Phone: string | null; IsCertified?: boolean };
-export type Review = { Id: string; Rating: number; Comment: string | null; CreatedAt: Date; CustomerName: string; StaffName: string | null };
+export type Review = {
+  Id: string; Rating: number; Comment: string | null; CreatedAt: Date; CustomerName: string; StaffName: string | null;
+  /** Dükkânın (sahip ya da ilgili personel) cevabı */
+  ReplyText: string | null; ReplyAtLocal: Date | null;
+};
 export type Hours = { Weekday: number; IsClosed: boolean; OpensAt: Date | null; ClosesAt: Date | null };
 
 export const shopUrl = (s: Pick<ShopCard, "Segment" | "ProvinceSlug" | "DistrictSlug" | "Slug">) =>
